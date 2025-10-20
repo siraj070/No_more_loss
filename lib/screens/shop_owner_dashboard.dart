@@ -5,7 +5,11 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/product.dart';
 import '../services/product_service.dart';
 import 'add_product_screen.dart';
-import 'shop_registration_screen.dart'; // ✅ Added import
+import 'shop_registration_screen.dart';
+
+// 👇 newly added imports
+import 'settings/shop_owner_settings.dart';
+import '../utils/slide_transition.dart';
 
 class ShopOwnerDashboard extends StatefulWidget {
   const ShopOwnerDashboard({super.key});
@@ -51,13 +55,27 @@ class _ShopOwnerDashboardState extends State<ShopOwnerDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text('Shop Owner Dashboard',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text(
+          'Shop Owner Dashboard',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
         backgroundColor: const Color(0xFF10B981),
         actions: [
+          // ⚙️ Settings button added with smooth slide transition
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.of(context).push(
+                SlideRightRoute(page: const ShopOwnerSettingsScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Add Product',
             onPressed: _navigateToAddProduct,
           ),
         ],
@@ -81,6 +99,8 @@ class _ShopOwnerDashboardState extends State<ShopOwnerDashboard> {
               label: const Text('Register / Update Shop Info'),
             ),
           ),
+
+          // 🛍 Product list section
           Expanded(
             child: StreamBuilder<List<Product>>(
               stream: _productService.getProductsByOwner(user!.uid),
@@ -96,9 +116,13 @@ class _ShopOwnerDashboardState extends State<ShopOwnerDashboard> {
                         const Icon(Icons.store_mall_directory_outlined,
                             size: 100, color: Colors.grey),
                         const SizedBox(height: 16),
-                        Text('No products added yet',
-                            style: GoogleFonts.poppins(
-                                fontSize: 18, color: Colors.grey)),
+                        Text(
+                          'No products added yet',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            color: Colors.grey,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -115,30 +139,45 @@ class _ShopOwnerDashboardState extends State<ShopOwnerDashboard> {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 3,
                         child: ListTile(
                           leading: product.imageUrl.isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(product.imageUrl,
-                                      width: 50, height: 50, fit: BoxFit.cover),
+                                  child: Image.network(
+                                    product.imageUrl,
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                  ),
                                 )
-                              : const Icon(Icons.local_grocery_store,
-                                  color: Color(0xFF10B981)),
-                          title: Text(product.name,
-                              style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600)),
-                          subtitle: Text(
-                              '₹${product.discountedPrice.toStringAsFixed(0)}'),
+                              : const Icon(
+                                  Icons.local_grocery_store,
+                                  color: Color(0xFF10B981),
+                                ),
+                          title: Text(
+                            product.name,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle:
+                              Text('₹${product.discountedPrice.toStringAsFixed(0)}'),
                           trailing: PopupMenuButton(
                             icon: const Icon(Icons.more_vert),
                             itemBuilder: (ctx) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Edit'),
+                              ),
                               const PopupMenuItem(
                                 value: 'delete',
-                                child: Text('Delete',
-                                    style: TextStyle(color: Colors.red)),
+                                child: Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
                               ),
                             ],
                             onSelected: (value) {

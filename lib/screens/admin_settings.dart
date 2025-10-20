@@ -5,18 +5,17 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../login_screen.dart';
 
-class CustomerSettingsScreen extends StatefulWidget {
-  const CustomerSettingsScreen({super.key});
+class AdminSettingsScreen extends StatefulWidget {
+  const AdminSettingsScreen({super.key});
 
   @override
-  State<CustomerSettingsScreen> createState() => _CustomerSettingsScreenState();
+  State<AdminSettingsScreen> createState() => _AdminSettingsScreenState();
 }
 
-class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
+class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final _auth = FirebaseAuth.instance;
   DocumentSnapshot<Map<String, dynamic>>? _userDoc;
   bool _loading = true;
-  bool _notifications = true; // toggle stored locally; wire later if you want
 
   @override
   void initState() {
@@ -48,7 +47,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
     final user = _auth.currentUser;
     final email = user?.email ?? '';
     final name = _userDoc?.data()?['name'] ?? email.split('@').first;
-    final role = _userDoc?.data()?['role'] ?? 'Customer';
+    final role = _userDoc?.data()?['role'] ?? 'Admin';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -57,12 +56,11 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
             ? const Center(child: CircularProgressIndicator())
             : Column(
                 children: [
-                  // top header
                   Container(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFFDBFFF2), Color(0xFFECFFFA)], // very light teal
+                        colors: [Color(0xFFEFF6FF), Color(0xFFF7FBFF)], // very light blue
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -71,7 +69,6 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                     ),
                     child: Row(
                       children: [
-                        // logo
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Image.asset(
@@ -92,7 +89,7 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                                     fontWeight: FontWeight.w700,
                                     color: const Color(0xFF0F172A),
                                   )),
-                              Text('Customer Settings',
+                              Text('Admin Settings',
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
                                     color: const Color(0xFF64748B),
@@ -108,7 +105,6 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                     ),
                   ),
 
-                  // profile card
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Container(
@@ -128,8 +124,8 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                         children: [
                           const CircleAvatar(
                             radius: 26,
-                            backgroundColor: Color(0xFF40C9A2), // customer accent
-                            child: Icon(Icons.person, color: Colors.white),
+                            backgroundColor: Color(0xFF60A5FA), // admin accent
+                            child: Icon(Icons.shield_person, color: Colors.white),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -148,14 +144,14 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF40C9A2).withOpacity(.12),
+                                    color: const Color(0xFF60A5FA).withOpacity(.12),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(role,
                                       style: GoogleFonts.poppins(
                                           fontSize: 11,
-                                          color: const Color(0xFF0F766E),
-                                          fontWeight: FontWeight.w600)),
+                                          color: const Color(0xFF1D4ED8),
+                                          fontWeight: FontWeight.w700)),
                                 ),
                               ],
                             ),
@@ -165,51 +161,34 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
                     ),
                   ),
 
-                  // settings list
                   Expanded(
                     child: ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       children: [
-                        _TileHeader('Preferences'),
-                        _SwitchTile(
-                          icon: Icons.notifications_active_outlined,
-                          color: const Color(0xFF40C9A2),
-                          title: 'Order & Promo Notifications',
-                          value: _notifications,
-                          onChanged: (v) => setState(() => _notifications = v),
-                        ),
+                        _TileHeader('Moderation'),
                         _NavTile(
-                          icon: Icons.location_on_outlined,
-                          color: const Color(0xFF40C9A2),
-                          title: 'Saved Addresses',
-                          subtitle: 'Manage delivery addresses',
+                          icon: Icons.verified_outlined,
+                          color: const Color(0xFF60A5FA),
+                          title: 'Pending Shops',
+                          subtitle: 'Review & approve/reject',
                           onTap: () {
-                            // TODO: navigate to addresses screen
+                            // you already have AdminDashboard with approvals
+                            Navigator.pop(context);
                           },
                         ),
                         _NavTile(
-                          icon: Icons.lock_outline,
-                          color: const Color(0xFF40C9A2),
-                          title: 'Privacy & Security',
-                          subtitle: 'Password, sessions',
-                          onTap: () {
-                            // TODO
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        _TileHeader('Support'),
-                        _NavTile(
-                          icon: Icons.help_outline,
-                          color: const Color(0xFF40C9A2),
-                          title: 'Help Center',
-                          subtitle: 'FAQs and contact',
+                          icon: Icons.report_gmailerrorred_outlined,
+                          color: const Color(0xFF60A5FA),
+                          title: 'Reports',
+                          subtitle: 'User reports & flags',
                           onTap: () {},
                         ),
+                        _TileHeader('System'),
                         _NavTile(
-                          icon: Icons.description_outlined,
-                          color: const Color(0xFF40C9A2),
-                          title: 'Terms & Policies',
-                          subtitle: 'Read our policies',
+                          icon: Icons.mail_outline,
+                          color: const Color(0xFF60A5FA),
+                          title: 'Email Templates',
+                          subtitle: 'Approval/Rejection emails',
                           onTap: () {},
                         ),
                         const SizedBox(height: 12),
@@ -241,10 +220,10 @@ class _CustomerSettingsScreenState extends State<CustomerSettingsScreen> {
   }
 }
 
+// shared tiles
 class _TileHeader extends StatelessWidget {
   final String text;
   const _TileHeader(this.text);
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -289,41 +268,6 @@ class _NavTile extends StatelessWidget {
             : Text(subtitle!, style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF64748B))),
         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
         onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _SwitchTile extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _SwitchTile({
-    super.key,
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      elevation: 0.5,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withOpacity(.15),
-          child: Icon(icon, color: color),
-        ),
-        title: Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        trailing: Switch(value: value, onChanged: onChanged),
-        onTap: () => onChanged(!value),
       ),
     );
   }

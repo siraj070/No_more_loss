@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// 👇 newly added imports
+import 'settings/admin_settings.dart';
+import '../utils/slide_transition.dart';
+
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -23,7 +27,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _updateShopStatus(
       String shopId, String newStatus, Map<String, dynamic> shopData) async {
     try {
-      // ✅ Move shop to approved/rejected
       final targetCollection =
           newStatus == 'approved' ? 'approved_shops' : 'rejected_shops';
 
@@ -33,7 +36,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         'updatedAt': Timestamp.now(),
       });
 
-      // ✅ Remove from pending
       await _firestore.collection('pending_shops').doc(shopId).delete();
 
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -125,7 +127,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         style: GoogleFonts.poppins(fontSize: 14)),
                     const SizedBox(height: 10),
 
-                    // Buttons only for pending shops
+                    // ✅ Buttons only for pending shops
                     if (collectionName == 'pending_shops')
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -153,7 +155,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         ],
                       )
                     else
-                      // Approved or Rejected info
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -186,10 +187,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: Text('Admin Dashboard',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text(
+          'Admin Dashboard',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
         backgroundColor: const Color(0xFF10B981),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.of(context).push(
+                SlideRightRoute(page: const AdminSettingsScreen()),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,

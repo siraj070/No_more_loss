@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../models/product.dart';
 import '../services/product_service.dart';
 import '../services/cart_service.dart';
@@ -15,6 +16,10 @@ import 'order_history_screen.dart';
 import 'shop_owner_dashboard.dart';
 import 'checkout_screen.dart';
 
+// 👇 newly added imports
+import 'settings/customer_settings.dart';
+import '../utils/slide_transition.dart';
+
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
 
@@ -26,7 +31,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   final ProductService _productService = ProductService();
   final AuthService _authService = AuthService();
   final TextEditingController _searchController = TextEditingController();
-  
+
   String _userRole = '';
   bool _isLoading = true;
   String _selectedCategory = 'All';
@@ -116,7 +121,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               backgroundColor: const Color(0xFF10B981),
               foregroundColor: Colors.white,
             ),
-            child: Text('Confirm'),
+            child: const Text('Confirm'),
           ),
         ],
       ),
@@ -125,14 +130,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   Future<void> _logout() async {
     await _authService.signOut();
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LoginScreen()));
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
   List<Product> _filterProducts(List<Product> products) {
     return products.where((product) {
       final matchesCategory = _selectedCategory == 'All' || product.category == _selectedCategory;
-      final matchesSearch = _searchQuery.isEmpty ||
-          product.name.toLowerCase().contains(_searchQuery.toLowerCase());
+      final matchesSearch =
+          _searchQuery.isEmpty || product.name.toLowerCase().contains(_searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     }).toList();
   }
@@ -198,7 +203,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   tooltip: 'My Orders',
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => OrderHistoryScreen()),
+                    MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
                   ),
                 ),
               if (_userRole == 'Shop Owner')
@@ -207,9 +212,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   tooltip: 'Dashboard',
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => ShopOwnerDashboard()),
+                    MaterialPageRoute(builder: (_) => const ShopOwnerDashboard()),
                   ),
                 ),
+              // ⚙️ settings icon for all roles
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.white),
+                tooltip: 'Settings',
+                onPressed: () {
+                  Navigator.of(context).push(SlideRightRoute(page: const CustomerSettingsScreen()));
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.logout, color: Colors.white),
                 onPressed: _logout,
@@ -239,7 +252,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     hintStyle: GoogleFonts.poppins(color: Colors.grey),
                     prefixIcon: const Icon(Icons.search, color: Color(0xFF10B981)),
                     border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
                 ),
               ),
@@ -260,9 +274,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     child: ChoiceChip(
                       label: Text(category),
                       selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() => _selectedCategory = category);
-                      },
+                      onSelected: (selected) => setState(() => _selectedCategory = category),
                       backgroundColor: Colors.white,
                       selectedColor: const Color(0xFF10B981),
                       labelStyle: GoogleFonts.poppins(
@@ -272,7 +284,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: isSelected ? const Color(0xFF10B981) : Colors.grey.shade300,
+                          color: isSelected
+                              ? const Color(0xFF10B981)
+                              : Colors.grey.shade300,
                         ),
                       ),
                     ),
@@ -287,7 +301,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
               stream: _productService.getProducts(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
+                  return const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  );
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return SliverFillRemaining(
@@ -295,9 +311,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.shopping_basket_outlined, size: 100, color: Colors.grey),
+                          const Icon(Icons.shopping_basket_outlined,
+                              size: 100, color: Colors.grey),
                           const SizedBox(height: 16),
-                          Text('No products available', style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey)),
+                          Text(
+                            'No products available',
+                            style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey),
+                          ),
                         ],
                       ),
                     ),
@@ -330,10 +350,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => CartScreen()),
+                MaterialPageRoute(builder: (_) => const CartScreen()),
               ),
               icon: const Icon(Icons.shopping_cart),
-              label: Text('${cartService.itemCount} items • ₹${cartService.totalAmount.toStringAsFixed(0)}'),
+              label: Text(
+                  '${cartService.itemCount} items • ₹${cartService.totalAmount.toStringAsFixed(0)}'),
               backgroundColor: const Color(0xFFF59E0B),
             )
           : null,
