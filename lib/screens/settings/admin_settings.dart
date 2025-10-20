@@ -125,7 +125,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           const CircleAvatar(
                             radius: 26,
                             backgroundColor: Color(0xFF60A5FA), // admin accent
-                            child: Icon(Icons.shield_person, color: Colors.white),
+                            child: Icon(Icons.admin_panel_settings, color: Colors.white),
                           ),
                           const SizedBox(width: 12),
                           Expanded(

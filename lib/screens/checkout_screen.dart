@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,15 +7,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:provider/provider.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../services/cart_service.dart';
-import '../services/order_service.dart';
 import '../models/order.dart';
+import '../services/order_service.dart';
+import '../web_razorpay_service.dart' if (dart.library.html) '../web_razorpay_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
   @override
-  _CheckoutScreenState createState() => _CheckoutScreenState();
+  State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
@@ -24,108 +28,178 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _pincodeController = TextEditingController();
   final _phoneController = TextEditingController();
 
+  late Razorpay _razorpay;
   bool _isLoadingLocation = false;
   bool _isPlacingOrder = false;
-  String _selectedPaymentMethod = 'Cash on Delivery';
 
   double? _latitude;
   double? _longitude;
 
-  final List<String> paymentMethods = [
-    'Cash on Delivery',
-    'UPI',
-    'Card',
-    'Wallet',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
 
-  // Location detection function with error handling and address autofill
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  /// 🗺️ Get Current Location
   Future<void> _getCurrentLocation() async {
     setState(() => _isLoadingLocation = true);
-
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw Exception('Location services are disabled. Please enable location in your device settings.');
-      }
-
+      if (!serviceEnabled) throw Exception('Please enable location services.');
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          throw Exception('Location permissions are denied. Please allow location access.');
+          throw Exception('Location permission denied.');
         }
       }
-
       if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permissions are permanently denied. Please enable permissions in app settings.');
+        throw Exception('Permission permanently denied. Enable in settings.');
       }
 
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       _latitude = position.latitude;
       _longitude = position.longitude;
 
-      List<Placemark> placemarks = await placemarkFromCoordinates(_latitude!, _longitude!);
-
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(_latitude!, _longitude!);
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        setState(() {
-          _fullAddressController.text = '${place.street ?? ''}, ${place.subLocality ?? ''}, ${place.locality ?? ''}'.trim();
-          _cityController.text = place.locality ?? '';
-          _pincodeController.text = place.postalCode ?? '';
-        });
+        _fullAddressController.text =
+            '${place.street ?? ''}, ${place.subLocality ?? ''}, ${place.locality ?? ''}';
+        _cityController.text = place.locality ?? '';
+        _pincodeController.text = place.postalCode ?? '';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Location detected successfully! ✅'),
-        backgroundColor: Color(0xFF10B981),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('📍 Location detected successfully')),
+      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Error: ${e.toString()}'),
-        backgroundColor: const Color(0xFFEF4444),
-        duration: const Duration(seconds: 4),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
     } finally {
       setState(() => _isLoadingLocation = false);
     }
   }
 
-  Future<void> _placeOrder() async {
-    if (!_formKey.currentState!.validate()) return;
+  /// 💳 Open Razorpay Checkout
+  void _openCheckout(double amount) async {
+    if (kIsWeb) {
+      // For Web
+      try {
+        RazorpayWeb.openCheckout(
+          key: 'rzp_test_RVn4gcgHMRXP8s',
+          amount: amount,
+          name: 'No More Loss',
+          description: 'Order Payment',
+          contact: _phoneController.text.isNotEmpty
+              ? _phoneController.text
+              : '9999999999',
+          email: 'test@example.com',
+        );
+      } catch (e) {
+        debugPrint('Web Razorpay Error: $e');
+      }
+    } else {
+      // For Mobile (Android/iOS)
+      var options = {
+        'key': 'rzp_test_RVn4gcgHMRXP8s',
+        'amount': (amount * 100).toInt(),
+        'name': 'No More Loss',
+        'description': 'Order Payment',
+        'prefill': {'contact': _phoneController.text, 'email': 'user@test.com'},
+        'theme.color': '#10B981',
+      };
 
+      try {
+        _razorpay.open(options);
+      } catch (e) {
+        debugPrint('Mobile Razorpay Error: $e');
+      }
+    }
+  }
+
+  /// ✅ Payment Success
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('✅ Payment Successful: ${response.paymentId}')),
+    );
+    await _saveOrder(response.paymentId ?? '');
+  }
+
+  /// ❌ Payment Failure
+  void _handlePaymentError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            '❌ Payment Failed: ${response.code} | ${response.message ?? "Unknown error"}'),
+      ),
+    );
+  }
+
+  /// 💼 External Wallet
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Wallet: ${response.walletName}')),
+    );
+  }
+
+  /// 🧾 Save Order with Payment Info
+  Future<void> _saveOrder(String paymentId) async {
     setState(() => _isPlacingOrder = true);
-
     try {
       final user = FirebaseAuth.instance.currentUser;
       final cartService = Provider.of<CartService>(context, listen: false);
 
-      final addressString =
+      final address =
           '${_fullAddressController.text}, ${_landmarkController.text}, ${_cityController.text} - ${_pincodeController.text}, Phone: ${_phoneController.text}';
 
-      final order = AppOrder(
-        id: '',
-        customerId: user!.uid,
-        items: List.from(cartService.items),
-        totalAmount: cartService.totalAmount,
-        address: addressString,
-        createdAt: Timestamp.now(),
-      );
+      final orderData = {
+        'customerId': user!.uid,
+        'items': cartService.items.map((item) {
+          return {
+            'productId': item.product.id,
+            'name': item.product.name,
+            'price': item.product.discountedPrice,
+            'quantity': item.quantity,
+            'totalPrice': item.totalPrice,
+          };
+        }).toList(),
+        'totalAmount': cartService.totalAmount,
+        'address': address,
+        'paymentId': paymentId,
+        'status': 'paid',
+        'createdAt': FieldValue.serverTimestamp(),
+      };
 
-      await OrderService().addOrder(order);
+      await FirebaseFirestore.instance.collection('orders').add(orderData);
       cartService.clearCart();
 
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🎉 Payment successful & order saved!'),
+          backgroundColor: Color(0xFF10B981),
+        ),
+      );
+
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('🎉 Order placed successfully!'),
-        backgroundColor: Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-      ));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Failed to place order: ${e.toString()}'),
-        backgroundColor: const Color(0xFFEF4444),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving order: ${e.toString()}')),
+      );
     } finally {
       setState(() => _isPlacingOrder = false);
     }
@@ -134,242 +208,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cartService = Provider.of<CartService>(context);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: Text('Checkout', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text('Checkout', style: GoogleFonts.poppins()),
         backgroundColor: const Color(0xFF10B981),
-        elevation: 0,
       ),
-      body: SingleChildScrollView(
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Order Summary Card
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Order Summary',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Items (${cartService.itemCount})', style: GoogleFonts.poppins(color: Colors.grey.shade600)),
-                      Text('₹${cartService.totalAmount.toStringAsFixed(0)}', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Delivery Fee', style: GoogleFonts.poppins(color: Colors.grey.shade600)),
-                      Text('FREE', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: const Color(0xFF10B981))),
-                    ],
-                  ),
-                  const Divider(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Total', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('₹${cartService.totalAmount.toStringAsFixed(0)}',
-                        style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF10B981))),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Delivery Address Section with "Use GPS" Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Delivery Address',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _isLoadingLocation ? null : _getCurrentLocation,
-                    icon: _isLoadingLocation
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.my_location, size: 18),
-                    label: const Text('Use GPS'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF10B981),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Address Form Fields
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                  ),
-                ],
-              ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _fullAddressController,
-                      decoration: InputDecoration(
-                        labelText: 'Full Address *',
-                        hintText: 'House No, Building, Street',
-                        prefixIcon: const Icon(Icons.home, color: Color(0xFF10B981)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      validator: (v) => v!.isEmpty ? 'Required' : null,
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _landmarkController,
-                      decoration: InputDecoration(
-                        labelText: 'Landmark',
-                        hintText: 'Near famous place',
-                        prefixIcon: const Icon(Icons.location_on, color: Color(0xFF10B981)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _cityController,
-                            decoration: InputDecoration(
-                              labelText: 'City *',
-                              prefixIcon: const Icon(Icons.location_city, color: Color(0xFF10B981)),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            validator: (v) => v!.isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _pincodeController,
-                            decoration: InputDecoration(
-                              labelText: 'Pincode *',
-                              prefixIcon: const Icon(Icons.pin_drop, color: Color(0xFF10B981)),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            keyboardType: TextInputType.number,
-                            validator: (v) => v!.isEmpty ? 'Required' : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _phoneController,
-                      decoration: InputDecoration(
-                        labelText: 'Phone Number *',
-                        hintText: '10-digit mobile number',
-                        prefixIcon: const Icon(Icons.phone, color: Color(0xFF10B981)),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      keyboardType: TextInputType.phone,
-                      validator: (v) {
-                        if (v!.isEmpty) return 'Required';
-                        if (v.length != 10) return 'Must be 10 digits';
-                        return null;
-                      },
-                    ),
-                  ],
+            Text('Total: ₹${cartService.totalAmount.toStringAsFixed(0)}',
+                style: GoogleFonts.poppins(fontSize: 20)),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => _openCheckout(cartService.totalAmount),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text('Payment Method', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 8),
-            ...paymentMethods.map((method) {
-              return RadioListTile<String>(
-                title: Text(method, style: GoogleFonts.poppins()),
-                value: method,
-                groupValue: _selectedPaymentMethod,
-                onChanged: (value) => setState(() => _selectedPaymentMethod = value!),
-                activeColor: const Color(0xFF10B981),
-              );
-            }),
-            const SizedBox(height: 80),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, -4),
+              child: const Text('Pay Now'),
             ),
           ],
-        ),
-        child: SafeArea(
-          child: ElevatedButton(
-            onPressed: _isPlacingOrder ? null : _placeOrder,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: _isPlacingOrder
-                ? SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                  )
-                : Text(
-                    'Place Order - ₹${cartService.totalAmount.toStringAsFixed(0)}',
-                    style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-          ),
         ),
       ),
     );
