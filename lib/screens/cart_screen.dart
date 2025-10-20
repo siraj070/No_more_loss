@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/cart_service.dart';
-import 'checkout_screen.dart';
+import 'address_screen.dart'; // 👈 added this import
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -14,7 +14,8 @@ class CartScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: Text('My Cart', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text('My Cart',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         backgroundColor: const Color(0xFF10B981),
         elevation: 0,
       ),
@@ -23,16 +24,21 @@ class CartScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.shopping_cart_outlined, size: 120, color: Colors.grey.shade300),
+                  Icon(Icons.shopping_cart_outlined,
+                      size: 120, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
                   Text(
                     'Your cart is empty',
-                    style: GoogleFonts.poppins(fontSize: 20, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                    style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Add products to get started',
-                    style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade500),
+                    style: GoogleFonts.poppins(
+                        fontSize: 14, color: Colors.grey.shade500),
                   ),
                 ],
               ),
@@ -76,7 +82,6 @@ class CartScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,7 +115,6 @@ class CartScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              
                               Column(
                                 children: [
                                   Container(
@@ -121,10 +125,13 @@ class CartScreen extends StatelessWidget {
                                     child: Row(
                                       children: [
                                         IconButton(
-                                          icon: const Icon(Icons.remove_circle_outline, color: Color(0xFFEF4444)),
+                                          icon: const Icon(
+                                              Icons.remove_circle_outline,
+                                              color: Color(0xFFEF4444)),
                                           onPressed: () {
                                             cartService.updateQuantity(
-                                                cartItem.product.id, cartItem.quantity - 1);
+                                                cartItem.product.id,
+                                                cartItem.quantity - 1);
                                           },
                                           iconSize: 24,
                                         ),
@@ -136,10 +143,13 @@ class CartScreen extends StatelessWidget {
                                           ),
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.add_circle_outline, color: Color(0xFF10B981)),
+                                          icon: const Icon(
+                                              Icons.add_circle_outline,
+                                              color: Color(0xFF10B981)),
                                           onPressed: () {
                                             cartService.updateQuantity(
-                                                cartItem.product.id, cartItem.quantity + 1);
+                                                cartItem.product.id,
+                                                cartItem.quantity + 1);
                                           },
                                           iconSize: 24,
                                         ),
@@ -149,9 +159,11 @@ class CartScreen extends StatelessWidget {
                                   const SizedBox(height: 8),
                                   TextButton.icon(
                                     onPressed: () {
-                                      cartService.removeFromCart(cartItem.product.id);
+                                      cartService
+                                          .removeFromCart(cartItem.product.id);
                                     },
-                                    icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 18, color: Color(0xFFEF4444)),
                                     label: Text(
                                       'Remove',
                                       style: GoogleFonts.poppins(
@@ -169,7 +181,7 @@ class CartScreen extends StatelessWidget {
                     },
                   ),
                 ),
-                
+
                 // Checkout Section
                 Container(
                   padding: const EdgeInsets.all(20),
@@ -210,16 +222,19 @@ class CartScreen extends StatelessWidget {
                               ],
                             ),
                             ElevatedButton(
+                              // ✅ now opens Address Screen first
                               onPressed: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (_) => CheckoutScreen()),
+                                  MaterialPageRoute(
+                                      builder: (_) => const AddressScreen()),
                                 );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFF59E0B),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 32, vertical: 16),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
@@ -234,8 +249,8 @@ class CartScreen extends StatelessWidget {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  SizedBox(width: 8),
-                                  Icon(Icons.arrow_forward, size: 20),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.arrow_forward, size: 20),
                                 ],
                               ),
                             ),
