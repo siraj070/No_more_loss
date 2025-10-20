@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mvc</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  
+  <!-- Firebase SDK Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBCg2JMJQcWEKUJ3kBY1ok2PmjQeo-Cf28",
+      authDomain: "shop-cust.firebaseapp.com",
+      projectId: "shop-cust",
+      storageBucket: "shop-cust.firebasestorage.app",
+      messagingSenderId: "1003283641297",
+      appId: "1:1003283641297:web:4b0c198595db271d27e6f0",
+      measurementId: "G-TWMHE5KGG8"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+  </script>
+
+  <!-- Flutter app script -->
+  <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>
