@@ -6,6 +6,8 @@ import '../models/order.dart';
 import '../services/order_service.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
+  const OrderHistoryScreen({super.key});
+
   @override
   _OrderHistoryScreenState createState() => _OrderHistoryScreenState();
 }
@@ -18,10 +20,10 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: Color(0xFFF9FAFB),
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: Text('My Orders', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        backgroundColor: Color(0xFF10B981),
+        backgroundColor: const Color(0xFF10B981),
         elevation: 0,
       ),
       body: StreamBuilder<List<AppOrder>>(
@@ -37,7 +39,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
           // Loading indicator only if first empty AND still waiting
           if (orders.isEmpty && snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
 
           // Empty state when truly empty after loading
@@ -47,9 +49,9 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.shopping_bag_outlined, size: 100, color: Colors.grey.shade300),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                   Text('No orders yet', style: GoogleFonts.poppins(fontSize: 20, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text('Start shopping to see your orders here', style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade500)),
                 ],
               ),
@@ -58,7 +60,7 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 
           // Show list from cache
           return ListView.builder(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             itemCount: orders.length,
             itemBuilder: (context, index) {
               final order = orders[index];
@@ -74,16 +76,16 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
 class OrderCard extends StatelessWidget {
   final AppOrder order;
 
-  const OrderCard({required this.order});
+  const OrderCard({super.key, required this.order});
 
   Color _getStatusColor(String status) {
     switch (status) {
       case 'pending':
-        return Color(0xFFF59E0B);
+        return const Color(0xFFF59E0B);
       case 'confirmed':
-        return Color(0xFF3B82F6);
+        return const Color(0xFF3B82F6);
       case 'delivered':
-        return Color(0xFF10B981);
+        return const Color(0xFF10B981);
       default:
         return Colors.grey;
     }
@@ -107,14 +109,14 @@ class OrderCard extends StatelessWidget {
     final date = DateFormat('dd MMM yyyy, hh:mm a').format(order.createdAt.toDate());
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -123,13 +125,13 @@ class OrderCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.receipt_long, color: Color(0xFF10B981), size: 20),
-                    SizedBox(width: 8),
+                    const Icon(Icons.receipt_long, color: Color(0xFF10B981), size: 20),
+                    const SizedBox(width: 8),
                     Text('Order #${order.id.substring(0, 8)}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16)),
                   ],
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: _getStatusColor(order.status).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -137,7 +139,7 @@ class OrderCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Icon(_getStatusIcon(order.status), size: 14, color: _getStatusColor(order.status)),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
                         order.status.toUpperCase(),
                         style: GoogleFonts.poppins(
@@ -151,19 +153,19 @@ class OrderCard extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade600),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Text(date, style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 13)),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Icon(Icons.location_on, size: 14, color: Colors.grey.shade600),
-                SizedBox(width: 6),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     order.address,
@@ -175,34 +177,34 @@ class OrderCard extends StatelessWidget {
               ],
             ),
             
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             // Timeline
             OrderTimeline(order: order),
             
-            Divider(height: 24),
+            const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Total Amount', style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600)),
                 Text(
                   '₹${order.totalAmount.toStringAsFixed(0)}',
-                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                  style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF10B981)),
                 ),
               ],
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () {
                   // Navigate to order details screen
                 },
-                child: Text('View Details'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: Color(0xFF10B981),
-                  side: BorderSide(color: Color(0xFF10B981)),
+                  foregroundColor: const Color(0xFF10B981),
+                  side: const BorderSide(color: Color(0xFF10B981)),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
+                child: Text('View Details'),
               ),
             ),
           ],
@@ -215,7 +217,7 @@ class OrderCard extends StatelessWidget {
 class OrderTimeline extends StatelessWidget {
   final AppOrder order;
 
-  const OrderTimeline({required this.order});
+  const OrderTimeline({super.key, required this.order});
 
   @override
   Widget build(BuildContext context) {
@@ -238,9 +240,9 @@ class OrderTimeline extends StatelessWidget {
           height: 28,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? Color(0xFF10B981) : Colors.grey.shade300,
+            color: isActive ? const Color(0xFF10B981) : Colors.grey.shade300,
             border: Border.all(
-              color: isActive ? Color(0xFF10B981) : Colors.grey.shade300,
+              color: isActive ? const Color(0xFF10B981) : Colors.grey.shade300,
               width: 2,
             ),
           ),
@@ -250,13 +252,13 @@ class OrderTimeline extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-        SizedBox(height: 6),
+        const SizedBox(height: 6),
         Text(
           label,
           style: GoogleFonts.poppins(
             fontSize: 11,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            color: isActive ? Color(0xFF10B981) : Colors.grey.shade500,
+            color: isActive ? const Color(0xFF10B981) : Colors.grey.shade500,
           ),
         ),
       ],
@@ -267,9 +269,9 @@ class OrderTimeline extends StatelessWidget {
     return Expanded(
       child: Container(
         height: 3,
-        margin: EdgeInsets.only(bottom: 30),
+        margin: const EdgeInsets.only(bottom: 30),
         decoration: BoxDecoration(
-          color: isActive ? Color(0xFF10B981) : Colors.grey.shade300,
+          color: isActive ? const Color(0xFF10B981) : Colors.grey.shade300,
           borderRadius: BorderRadius.circular(2),
         ),
       ),

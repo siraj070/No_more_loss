@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../services/auth_service.dart';
 import 'product_list_screen.dart';
+import 'shop_owner_dashboard.dart';
+import 'admin_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -21,12 +27,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _authenticate() async {
     setState(() => _isLoading = true);
     try {
+      User? user;
+
       if (_isSignUp) {
-        final user = await _authService.signUp(
+        user = await _authService.signUp(
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
-        
+
         await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
           'email': _emailController.text.trim(),
           'role': _selectedRole,
@@ -37,12 +45,34 @@ class _LoginScreenState extends State<LoginScreen> {
           _emailController.text.trim(),
           _passwordController.text.trim(),
         );
+        user = FirebaseAuth.instance.currentUser;
       }
-      
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => ProductListScreen()),
-      );
+
+      // ✅ Check role from Firestore
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .get();
+
+      final role = doc['role'] ?? 'Customer';
+
+      // ✅ Redirect based on role
+      if (role == 'Admin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+        );
+      } else if (role == 'Shop Owner') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ShopOwnerDashboard()),
+        ); // ✅ Fixed name here
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ProductListScreen()),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -59,10 +89,10 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -84,26 +114,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Padding(
                   padding: EdgeInsets.all(screenWidth * 0.06),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: 400),
+                    constraints: const BoxConstraints(maxWidth: 400),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.shopping_bag,
                           size: screenHeight * 0.08,
-                          color: Color(0xFF10B981),
+                          color: const Color(0xFF10B981),
                         ),
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
                         Text(
                           'Near Expiry Market',
                           style: GoogleFonts.poppins(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF10B981),
+                            color: const Color(0xFF10B981),
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'Save Money, Reduce Waste',
                           style: GoogleFonts.poppins(
@@ -111,8 +141,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        SizedBox(height: 24),
-                        
+                        const SizedBox(height: 24),
+
+                        // Signup Role Selector
                         if (_isSignUp) ...[
                           Text(
                             'I am a:',
@@ -121,22 +152,24 @@ class _LoginScreenState extends State<LoginScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
                                 child: InkWell(
-                                  onTap: () => setState(() => _selectedRole = 'Customer'),
+                                  onTap: () =>
+                                      setState(() => _selectedRole = 'Customer'),
                                   child: Container(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 12),
                                     decoration: BoxDecoration(
-                                      color: _selectedRole == 'Customer' 
-                                          ? Color(0xFF10B981) 
+                                      color: _selectedRole == 'Customer'
+                                          ? const Color(0xFF10B981)
                                           : Colors.grey.shade100,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: _selectedRole == 'Customer'
-                                            ? Color(0xFF10B981)
+                                            ? const Color(0xFF10B981)
                                             : Colors.grey.shade300,
                                       ),
                                     ),
@@ -144,8 +177,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       'Customer',
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.poppins(
-                                        color: _selectedRole == 'Customer' 
-                                            ? Colors.white 
+                                        color: _selectedRole == 'Customer'
+                                            ? Colors.white
                                             : Colors.black87,
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
@@ -154,20 +187,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: InkWell(
-                                  onTap: () => setState(() => _selectedRole = 'Shop Owner'),
+                                  onTap: () =>
+                                      setState(() => _selectedRole = 'Shop Owner'),
                                   child: Container(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 12),
                                     decoration: BoxDecoration(
-                                      color: _selectedRole == 'Shop Owner' 
-                                          ? Color(0xFF10B981) 
+                                      color: _selectedRole == 'Shop Owner'
+                                          ? const Color(0xFF10B981)
                                           : Colors.grey.shade100,
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: _selectedRole == 'Shop Owner'
-                                            ? Color(0xFF10B981)
+                                            ? const Color(0xFF10B981)
                                             : Colors.grey.shade300,
                                       ),
                                     ),
@@ -175,8 +210,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       'Shop Owner',
                                       textAlign: TextAlign.center,
                                       style: GoogleFonts.poppins(
-                                        color: _selectedRole == 'Shop Owner' 
-                                            ? Colors.white 
+                                        color: _selectedRole == 'Shop Owner'
+                                            ? Colors.white
                                             : Colors.black87,
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13,
@@ -187,40 +222,50 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
-                          SizedBox(height: 16),
+                          const SizedBox(height: 16),
                         ],
-                        
+
+                        // Email field
                         TextField(
                           controller: _emailController,
                           decoration: InputDecoration(
                             labelText: 'Email',
-                            labelStyle: TextStyle(fontSize: 14),
-                            prefixIcon: Icon(Icons.email, color: Color(0xFF10B981), size: 20),
+                            labelStyle: const TextStyle(fontSize: 14),
+                            prefixIcon: const Icon(Icons.email,
+                                color: Color(0xFF10B981), size: 20),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Color(0xFF10B981), width: 2),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF10B981), width: 2),
                             ),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 14),
                           ),
                         ),
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
+
+                        // Password field
                         TextField(
                           controller: _passwordController,
                           decoration: InputDecoration(
                             labelText: 'Password',
-                            labelStyle: TextStyle(fontSize: 14),
-                            prefixIcon: Icon(Icons.lock, color: Color(0xFF10B981), size: 20),
+                            labelStyle: const TextStyle(fontSize: 14),
+                            prefixIcon: const Icon(Icons.lock,
+                                color: Color(0xFF10B981), size: 20),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
                                 color: Colors.grey,
                                 size: 20,
                               ),
                               onPressed: () {
-                                setState(() => _obscurePassword = !_obscurePassword);
+                                setState(
+                                    () => _obscurePassword = !_obscurePassword);
                               },
                             ),
                             border: OutlineInputBorder(
@@ -228,32 +273,40 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Color(0xFF10B981), width: 2),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF10B981), width: 2),
                             ),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 14),
                           ),
                           obscureText: _obscurePassword,
                         ),
-                        SizedBox(height: 20),
+                        const SizedBox(height: 20),
+
+                        // Login/Signup Button
                         _isLoading
-                            ? CircularProgressIndicator()
+                            ? const CircularProgressIndicator()
                             : ElevatedButton(
                                 onPressed: _authenticate,
-                                child: Text(
-                                  _isSignUp ? 'Sign Up' : 'Login',
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                                ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF10B981),
+                                  backgroundColor: const Color(0xFF10B981),
                                   foregroundColor: Colors.white,
-                                  minimumSize: Size(double.infinity, 50),
+                                  minimumSize: const Size(double.infinity, 50),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   elevation: 2,
                                 ),
+                                child: Text(
+                                  _isSignUp ? 'Sign Up' : 'Login',
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold),
+                                ),
                               ),
-                        SizedBox(height: 12),
+                        const SizedBox(height: 12),
+
+                        // Toggle login/signup
                         TextButton(
                           onPressed: () {
                             setState(() => _isSignUp = !_isSignUp);
@@ -262,7 +315,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             _isSignUp
                                 ? 'Already have an account? Login'
                                 : 'Don\'t have an account? Sign Up',
-                            style: TextStyle(color: Color(0xFF10B981), fontSize: 13),
+                            style: const TextStyle(
+                                color: Color(0xFF10B981), fontSize: 13),
                           ),
                         ),
                       ],

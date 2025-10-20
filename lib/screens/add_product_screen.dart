@@ -12,7 +12,7 @@ import '../models/product.dart';
 class AddProductScreen extends StatefulWidget {
   final Product? product;
 
-  const AddProductScreen({this.product});
+  const AddProductScreen({super.key, this.product});
 
   @override
   _AddProductScreenState createState() => _AddProductScreenState();
@@ -25,7 +25,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _discountedPriceController = TextEditingController();
 
   String _selectedCategory = 'Dairy';
-  DateTime _selectedDate = DateTime.now().add(Duration(days: 7));
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
   bool _isLoading = false;
 
   File? _pickedImage;
@@ -81,6 +81,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           .ref()
           .child('product_images')
           .child('$userId-${DateTime.now().millisecondsSinceEpoch}-$filename');
+
       UploadTask uploadTask;
       if (kIsWeb && _imageBytes != null) {
         uploadTask = storageRef.putData(_imageBytes!);
@@ -89,6 +90,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       } else {
         return _imageUrl ?? '';
       }
+
       print('Uploading image...');
       final snapshot = await uploadTask.whenComplete(() {});
       final downloadUrl = await snapshot.ref.getDownloadURL();
@@ -109,6 +111,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       print('Form validation failed');
       return;
     }
+
     print('Starting product add/update...');
     setState(() => _isLoading = true);
 
@@ -119,34 +122,36 @@ class _AddProductScreenState extends State<AddProductScreen> {
         print('Preparing to upload image...');
         final url = await _uploadImage();
         print('Image upload finished.');
-        if (url != null) {
-          imageUrlToUse = url;
-        }
+        if (url != null) imageUrlToUse = url;
       }
 
       final user = FirebaseAuth.instance.currentUser;
+
+      // ✅ Ensure full product model matches Firestore expectations
       final product = Product(
         id: widget.product?.id ?? '',
         name: _nameController.text.trim(),
+        description: 'No description provided',
         category: _selectedCategory,
         originalPrice: double.parse(_originalPriceController.text.trim()),
         discountedPrice: double.parse(_discountedPriceController.text.trim()),
-        expiryDate: _selectedDate,
-        ownerId: user?.uid ?? '',
+        quantity: 1,
         imageUrl: imageUrlToUse ?? '',
+        ownerId: user?.uid ?? '', // ✅ This ensures visibility for the right owner
+        expiryDate: _selectedDate,
       );
 
       if (widget.product == null) {
         print('Adding product...');
         await _productService.addProduct(product);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Product added successfully!'),
           backgroundColor: Color(0xFF10B981),
         ));
       } else {
         print('Updating product...');
         await _productService.updateProduct(product);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Product updated successfully!'),
           backgroundColor: Color(0xFF10B981),
         ));
@@ -158,7 +163,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       print('Exception during add/update: $e');
       print('Stack: $st');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to add/update product: $e'), backgroundColor: Color(0xFFEF4444)),
+        SnackBar(content: Text('Failed to add/update product: $e'), backgroundColor: const Color(0xFFEF4444)),
       );
     } finally {
       setState(() => _isLoading = false);
@@ -190,10 +195,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.product == null ? 'Add Product' : 'Edit Product', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        backgroundColor: Color(0xFF10B981),
+        backgroundColor: const Color(0xFF10B981),
       ),
       body: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
           child: Form(
             key: _formKey,
@@ -211,25 +216,20 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     child: imageWidget,
                   ),
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(labelText: 'Product Name', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                   validator: (value) => value!.isEmpty ? 'Please enter product name' : null,
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   value: _selectedCategory,
-                  items: _categories.map((category) {
-                    return DropdownMenuItem(
-                      value: category,
-                      child: Text(category),
-                    );
-                  }).toList(),
+                  items: _categories.map((category) => DropdownMenuItem(value: category, child: Text(category))).toList(),
                   onChanged: (val) => setState(() => _selectedCategory = val!),
                   decoration: InputDecoration(labelText: 'Category', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _originalPriceController,
                   decoration: InputDecoration(labelText: 'Original Price', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
@@ -240,7 +240,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     return null;
                   },
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _discountedPriceController,
                   decoration: InputDecoration(labelText: 'Discounted Price', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
@@ -251,40 +251,38 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     return null;
                   },
                 ),
-                SizedBox(height: 12),
+                const SizedBox(height: 12),
                 Row(
                   children: [
                     Text('Expiry Date: ${_selectedDate.toLocal().toString().split(' ')[0]}', style: GoogleFonts.poppins(fontSize: 16)),
-                    Spacer(),
+                    const Spacer(),
                     OutlinedButton(
                       onPressed: () async {
                         DateTime? picked = await showDatePicker(
                           context: context,
                           initialDate: _selectedDate,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
                         );
                         if (picked != null && picked != _selectedDate) {
-                          setState(() {
-                            _selectedDate = picked;
-                          });
+                          setState(() => _selectedDate = picked);
                         }
                       },
-                      child: Text('Select Date'),
-                      style: OutlinedButton.styleFrom(side: BorderSide(color: Color(0xFF10B981))),
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF10B981))),
+                      child: const Text('Select Date'),
                     ),
                   ],
                 ),
-                SizedBox(height: 24),
+                const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _addProduct,
-                  child: Text(widget.product == null ? 'Add Product' : 'Update Product'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF10B981),
+                    backgroundColor: const Color(0xFF10B981),
                     foregroundColor: Colors.white,
-                    minimumSize: Size(double.infinity, 50),
+                    minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: Text(widget.product == null ? 'Add Product' : 'Update Product'),
                 ),
               ],
             ),

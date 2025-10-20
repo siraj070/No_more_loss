@@ -10,6 +10,8 @@ import '../services/order_service.dart';
 import '../models/order.dart';
 
 class CheckoutScreen extends StatefulWidget {
+  const CheckoutScreen({super.key});
+
   @override
   _CheckoutScreenState createState() => _CheckoutScreenState();
 }
@@ -74,15 +76,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         });
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Location detected successfully! ✅'),
         backgroundColor: Color(0xFF10B981),
       ));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Error: ${e.toString()}'),
-        backgroundColor: Color(0xFFEF4444),
-        duration: Duration(seconds: 4),
+        backgroundColor: const Color(0xFFEF4444),
+        duration: const Duration(seconds: 4),
       ));
     } finally {
       setState(() => _isLoadingLocation = false);
@@ -114,7 +116,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       cartService.clearCart();
 
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('🎉 Order placed successfully!'),
         backgroundColor: Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
@@ -122,7 +124,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Failed to place order: ${e.toString()}'),
-        backgroundColor: Color(0xFFEF4444),
+        backgroundColor: const Color(0xFFEF4444),
       ));
     } finally {
       setState(() => _isPlacingOrder = false);
@@ -134,10 +136,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cartService = Provider.of<CartService>(context);
 
     return Scaffold(
-      backgroundColor: Color(0xFFF9FAFB),
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         title: Text('Checkout', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        backgroundColor: Color(0xFF10B981),
+        backgroundColor: const Color(0xFF10B981),
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -146,8 +148,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           children: [
             // Order Summary Card
             Container(
-              margin: EdgeInsets.all(16),
-              padding: EdgeInsets.all(16),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -168,7 +170,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -176,21 +178,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       Text('₹${cartService.totalAmount.toStringAsFixed(0)}', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
                     ],
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Delivery Fee', style: GoogleFonts.poppins(color: Colors.grey.shade600)),
-                      Text('FREE', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Color(0xFF10B981))),
+                      Text('FREE', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: const Color(0xFF10B981))),
                     ],
                   ),
-                  Divider(height: 24),
+                  const Divider(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Total', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
                       Text('₹${cartService.totalAmount.toStringAsFixed(0)}',
-                        style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                        style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: const Color(0xFF10B981))),
                     ],
                   ),
                 ],
@@ -199,7 +201,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
             // Delivery Address Section with "Use GPS" Button
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -213,15 +215,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   TextButton.icon(
                     onPressed: _isLoadingLocation ? null : _getCurrentLocation,
                     icon: _isLoadingLocation
-                        ? SizedBox(
+                        ? const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Icon(Icons.my_location, size: 18),
-                    label: Text('Use GPS'),
+                        : const Icon(Icons.my_location, size: 18),
+                    label: const Text('Use GPS'),
                     style: TextButton.styleFrom(
-                      foregroundColor: Color(0xFF10B981),
+                      foregroundColor: const Color(0xFF10B981),
                     ),
                   ),
                 ],
@@ -230,8 +232,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
             // Address Form Fields
             Container(
-              margin: EdgeInsets.all(16),
-              padding: EdgeInsets.all(16),
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -251,23 +253,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       decoration: InputDecoration(
                         labelText: 'Full Address *',
                         hintText: 'House No, Building, Street',
-                        prefixIcon: Icon(Icons.home, color: Color(0xFF10B981)),
+                        prefixIcon: const Icon(Icons.home, color: Color(0xFF10B981)),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       validator: (v) => v!.isEmpty ? 'Required' : null,
                       maxLines: 2,
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _landmarkController,
                       decoration: InputDecoration(
                         labelText: 'Landmark',
                         hintText: 'Near famous place',
-                        prefixIcon: Icon(Icons.location_on, color: Color(0xFF10B981)),
+                        prefixIcon: const Icon(Icons.location_on, color: Color(0xFF10B981)),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -275,19 +277,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             controller: _cityController,
                             decoration: InputDecoration(
                               labelText: 'City *',
-                              prefixIcon: Icon(Icons.location_city, color: Color(0xFF10B981)),
+                              prefixIcon: const Icon(Icons.location_city, color: Color(0xFF10B981)),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             validator: (v) => v!.isEmpty ? 'Required' : null,
                           ),
                         ),
-                        SizedBox(width: 12),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: TextFormField(
                             controller: _pincodeController,
                             decoration: InputDecoration(
                               labelText: 'Pincode *',
-                              prefixIcon: Icon(Icons.pin_drop, color: Color(0xFF10B981)),
+                              prefixIcon: const Icon(Icons.pin_drop, color: Color(0xFF10B981)),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             keyboardType: TextInputType.number,
@@ -296,13 +298,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _phoneController,
                       decoration: InputDecoration(
                         labelText: 'Phone Number *',
                         hintText: '10-digit mobile number',
-                        prefixIcon: Icon(Icons.phone, color: Color(0xFF10B981)),
+                        prefixIcon: const Icon(Icons.phone, color: Color(0xFF10B981)),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                       keyboardType: TextInputType.phone,
@@ -318,38 +320,45 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
 
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text('Payment Method', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             ...paymentMethods.map((method) {
               return RadioListTile<String>(
                 title: Text(method, style: GoogleFonts.poppins()),
                 value: method,
                 groupValue: _selectedPaymentMethod,
                 onChanged: (value) => setState(() => _selectedPaymentMethod = value!),
-                activeColor: Color(0xFF10B981),
+                activeColor: const Color(0xFF10B981),
               );
-            }).toList(),
-            SizedBox(height: 80),
+            }),
+            const SizedBox(height: 80),
           ],
         ),
       ),
       bottomNavigationBar: Container(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
               blurRadius: 20,
-              offset: Offset(0, -4),
+              offset: const Offset(0, -4),
             ),
           ],
         ),
         child: SafeArea(
           child: ElevatedButton(
             onPressed: _isPlacingOrder ? null : _placeOrder,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 56),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
             child: _isPlacingOrder
                 ? SizedBox(
                     height: 20,
@@ -360,13 +369,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     'Place Order - ₹${cartService.totalAmount.toStringAsFixed(0)}',
                     style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF10B981),
-              foregroundColor: Colors.white,
-              minimumSize: Size(double.infinity, 56),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
           ),
         ),
       ),

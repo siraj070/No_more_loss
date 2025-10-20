@@ -7,7 +7,7 @@ class ProductCard extends StatelessWidget {
   final Product product;
   final bool isCustomer;
 
-  const ProductCard({
+  const ProductCard({super.key, 
     required this.product,
     required this.isCustomer,
   });
@@ -37,12 +37,12 @@ class ProductCard extends StatelessWidget {
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -56,36 +56,36 @@ class ProductCard extends StatelessWidget {
                           width: double.infinity,
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
-                            return Center(child: CircularProgressIndicator());
+                            return const Center(child: CircularProgressIndicator());
                           },
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
                               color: Colors.grey.shade200,
-                              child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                              child: const Icon(Icons.broken_image, size: 50, color: Colors.grey),
                             );
                           },
                         )
                       : Container(
                           color: Colors.grey.shade200,
-                          child: Icon(Icons.local_grocery_store, size: 50, color: Color(0xFF10B981)),
+                          child: const Icon(Icons.local_grocery_store, size: 50, color: Color(0xFF10B981)),
                         ),
                 ),
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
                 product.name,
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Row(
                 children: [
                   Text(
                     '₹${product.discountedPrice.toStringAsFixed(0)}',
-                    style: GoogleFonts.poppins(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 16),
+                    style: GoogleFonts.poppins(color: const Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 16),
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
                     '₹${product.originalPrice.toStringAsFixed(0)}',
                     style: GoogleFonts.poppins(
@@ -96,25 +96,25 @@ class ProductCard extends StatelessWidget {
                   ),
                 ],
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Chip(
                     label: Text(product.category),
-                    backgroundColor: Color(0xFF10B981).withOpacity(0.15),
-                    labelStyle: GoogleFonts.poppins(color: Color(0xFF10B981)),
+                    backgroundColor: const Color(0xFF10B981).withOpacity(0.15),
+                    labelStyle: GoogleFonts.poppins(color: const Color(0xFF10B981)),
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Container(
                     decoration: BoxDecoration(
-                      color: daysLeft <= 3 ? Color(0xFFEF4444).withOpacity(0.15) : Color(0xFFF59E0B).withOpacity(0.15),
+                      color: daysLeft <= 3 ? const Color(0xFFEF4444).withOpacity(0.15) : const Color(0xFFF59E0B).withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: Text(
                       daysLeft <= 3 ? '$daysLeft days left' : 'Exp: ${product.expiryDate.toLocal().toString().split(' ')[0]}',
                       style: GoogleFonts.poppins(
-                        color: daysLeft <= 3 ? Color(0xFFEF4444) : Color(0xFFF59E0B),
+                        color: daysLeft <= 3 ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),

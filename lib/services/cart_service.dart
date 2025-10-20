@@ -9,17 +9,17 @@ class CartService extends ChangeNotifier {
 
   int get itemCount => _items.length;
 
-  double get totalAmount {
-    return _items.fold(0.0, (sum, item) => sum + item.totalPrice);
-  }
+  double get totalAmount =>
+      _items.fold(0.0, (sum, item) => sum + item.totalPrice);
 
   void addToCart(Product product) {
-    final existingIndex = _items.indexWhere((item) => item.product.id == product.id);
-    
+    final existingIndex =
+        _items.indexWhere((item) => item.product.id == product.id);
+
     if (existingIndex >= 0) {
       _items[existingIndex].quantity++;
     } else {
-      _items.add(CartItem(product: product));
+      _items.add(CartItem(product: product, quantity: 1));
     }
     notifyListeners();
   }

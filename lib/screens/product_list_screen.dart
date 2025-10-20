@@ -16,6 +16,8 @@ import 'shop_owner_dashboard.dart';
 import 'checkout_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
+  const ProductListScreen({super.key});
+
   @override
   _ProductListScreenState createState() => _ProductListScreenState();
 }
@@ -76,20 +78,20 @@ class _ProductListScreenState extends State<ProductListScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 RadioListTile(
-                  title: Text('Customer'),
-                  subtitle: Text('Browse and buy products'),
+                  title: const Text('Customer'),
+                  subtitle: const Text('Browse and buy products'),
                   value: 'Customer',
                   groupValue: selectedRole,
                   onChanged: (value) => setDialogState(() => selectedRole = value!),
-                  activeColor: Color(0xFF10B981),
+                  activeColor: const Color(0xFF10B981),
                 ),
                 RadioListTile(
-                  title: Text('Shop Owner'),
-                  subtitle: Text('Add and manage products'),
+                  title: const Text('Shop Owner'),
+                  subtitle: const Text('Add and manage products'),
                   value: 'Shop Owner',
                   groupValue: selectedRole,
                   onChanged: (value) => setDialogState(() => selectedRole = value!),
-                  activeColor: Color(0xFF10B981),
+                  activeColor: const Color(0xFF10B981),
                 ),
               ],
             );
@@ -110,11 +112,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 _isLoading = false;
               });
             },
-            child: Text('Confirm'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF10B981),
+              backgroundColor: const Color(0xFF10B981),
               foregroundColor: Colors.white,
             ),
+            child: Text('Confirm'),
           ),
         ],
       ),
@@ -140,21 +142,21 @@ class _ProductListScreenState extends State<ProductListScreen> {
     final cartService = Provider.of<CartService>(context);
 
     if (_isLoading) {
-      return Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      backgroundColor: Color(0xFFF9FAFB),
+      backgroundColor: const Color(0xFFF9FAFB),
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 160,
             floating: false,
             pinned: true,
-            backgroundColor: Color(0xFF10B981),
+            backgroundColor: const Color(0xFF10B981),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF10B981), Color(0xFF059669)],
                     begin: Alignment.topLeft,
@@ -163,7 +165,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
                 child: SafeArea(
                   child: Padding(
-                    padding: EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -192,7 +194,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
             actions: [
               if (_userRole == 'Customer')
                 IconButton(
-                  icon: Icon(Icons.receipt_long, color: Colors.white),
+                  icon: const Icon(Icons.receipt_long, color: Colors.white),
                   tooltip: 'My Orders',
                   onPressed: () => Navigator.push(
                     context,
@@ -201,7 +203,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
               if (_userRole == 'Shop Owner')
                 IconButton(
-                  icon: Icon(Icons.dashboard, color: Colors.white),
+                  icon: const Icon(Icons.dashboard, color: Colors.white),
                   tooltip: 'Dashboard',
                   onPressed: () => Navigator.push(
                     context,
@@ -209,14 +211,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ),
                 ),
               IconButton(
-                icon: Icon(Icons.logout, color: Colors.white),
+                icon: const Icon(Icons.logout, color: Colors.white),
                 onPressed: _logout,
               ),
             ],
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -225,7 +227,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     BoxShadow(
                       color: Colors.black.withOpacity(0.05),
                       blurRadius: 10,
-                      offset: Offset(0, 4),
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
@@ -235,26 +237,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   decoration: InputDecoration(
                     hintText: 'Search products...',
                     hintStyle: GoogleFonts.poppins(color: Colors.grey),
-                    prefixIcon: Icon(Icons.search, color: Color(0xFF10B981)),
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFF10B981)),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   ),
                 ),
               ),
             ),
           ),
           SliverToBoxAdapter(
-            child: Container(
+            child: SizedBox(
               height: 50,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: categories.length,
                 itemBuilder: (context, index) {
                   final category = categories[index];
                   final isSelected = _selectedCategory == category;
                   return Padding(
-                    padding: EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
                       label: Text(category),
                       selected: isSelected,
@@ -262,7 +264,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         setState(() => _selectedCategory = category);
                       },
                       backgroundColor: Colors.white,
-                      selectedColor: Color(0xFF10B981),
+                      selectedColor: const Color(0xFF10B981),
                       labelStyle: GoogleFonts.poppins(
                         color: isSelected ? Colors.white : Colors.black87,
                         fontWeight: FontWeight.w600,
@@ -270,7 +272,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: isSelected ? Color(0xFF10B981) : Colors.grey.shade300,
+                          color: isSelected ? const Color(0xFF10B981) : Colors.grey.shade300,
                         ),
                       ),
                     ),
@@ -280,12 +282,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
           ),
           SliverPadding(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             sliver: StreamBuilder<List<Product>>(
               stream: _productService.getProducts(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
+                  return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return SliverFillRemaining(
@@ -293,8 +295,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.shopping_basket_outlined, size: 100, color: Colors.grey),
-                          SizedBox(height: 16),
+                          const Icon(Icons.shopping_basket_outlined, size: 100, color: Colors.grey),
+                          const SizedBox(height: 16),
                           Text('No products available', style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey)),
                         ],
                       ),
@@ -330,9 +332,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => CartScreen()),
               ),
-              icon: Icon(Icons.shopping_cart),
+              icon: const Icon(Icons.shopping_cart),
               label: Text('${cartService.itemCount} items • ₹${cartService.totalAmount.toStringAsFixed(0)}'),
-              backgroundColor: Color(0xFFF59E0B),
+              backgroundColor: const Color(0xFFF59E0B),
             )
           : null,
     );
