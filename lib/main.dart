@@ -1,30 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/login_screen.dart';
-import 'services/cart_service.dart';
+import 'package:provider/provider.dart';
 
-void main() async {
+import 'services/auth_service.dart';
+import 'services/cart_service.dart';
+import 'services/product_service.dart';
+
+import 'screens/login_screen.dart';
+import 'screens/product_list_screen.dart';
+import 'screens/shop_owner_dashboard.dart';
+import 'screens/admin_dashboard_screen.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyBCg2JMJQcWEKUJ3kBY1ok2PmjQeo-Cf28",
-        authDomain: "shop-cust.firebaseapp.com",
-        projectId: "shop-cust",
-        storageBucket: "shop-cust.firebasestorage.app",
-        messagingSenderId: "1003283641297",
-        appId: "1:1003283641297:web:4b0c198595db271d27e6f0",
-        measurementId: "G-TWMHE5KGG8",
-      ),
-    );
-  } catch (e) {
-    print('Firebase initialization error: $e');
-  }
-  
-  runApp(MyApp());
+
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: "AIzaSyBCg2JMJQcWEKUJ3kBY1ok2PmjQeo-Cf28",
+      authDomain: "shop-cust.firebaseapp.com",
+      projectId: "shop-cust",
+      storageBucket: "shop-cust.firebasestorage.app",
+      messagingSenderId: "1003283641297",
+      appId: "1:1003283641297:web:00b498906c8adb5f27e6f0",
+      measurementId: "G-VHVXN7WQQD",
+    ),
+  );
+
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -32,18 +37,102 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => CartService(),
+    // ✅ All Providers globally available
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => CartService()),
+        ChangeNotifierProvider(create: (_) => ProductService()),
+      ],
       child: MaterialApp(
-        title: 'Near Expiry Marketplace',
+        title: 'No More Loss',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           primarySwatch: Colors.green,
           textTheme: GoogleFonts.poppinsTextTheme(),
-          visualDensity: VisualDensity.adaptivePlatformDensity,
         ),
-        home: LoginScreen(),
+        home: const AuthGate(),
       ),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  Future<Widget> _getHomeScreen(User user) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final role = doc.data()?['role'] ?? 'Customer';
+      if (role == 'Admin') return const AdminDashboardScreen();
+      if (role == 'Shop Owner') return const ShopOwnerDashboard();
+      return const ProductListScreen();
+    } catch (e) {
+      return Scaffold(
+        body: Center(
+          child: Text(
+            'Firestore error: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, authSnap) {
+        if (authSnap.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(color: Colors.green),
+            ),
+          );
+        }
+
+        if (authSnap.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Text('Auth Error: ${authSnap.error}',
+                  style: TextStyle(color: Colors.red[700])),
+            ),
+          );
+        }
+
+        if (!authSnap.hasData) {
+          return const LoginScreen();
+        }
+
+        return FutureBuilder<Widget>(
+          future: _getHomeScreen(authSnap.data!),
+          builder: (context, roleSnap) {
+            if (roleSnap.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(color: Colors.green),
+                ),
+              );
+            }
+
+            if (roleSnap.hasError) {
+              return Scaffold(
+                body: Center(
+                  child: Text('Error: ${roleSnap.error}',
+                      style: TextStyle(color: Colors.red[700])),
+                ),
+              );
+            }
+
+            return roleSnap.data ?? const ProductListScreen();
+          },
+        );
+      },
     );
   }
 }

@@ -25,6 +25,18 @@ class _LoginScreenState extends State<LoginScreen> {
   String _selectedRole = 'Customer';
 
   Future<void> _authenticate() async {
+    // ✅ Mandatory field check
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all mandatory fields'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       User? user;
@@ -57,6 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final role = doc['role'] ?? 'Customer';
 
       // ✅ Redirect based on role
+      if (!mounted) return;
       if (role == 'Admin') {
         Navigator.pushReplacement(
           context,
@@ -66,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const ShopOwnerDashboard()),
-        ); // ✅ Fixed name here
+        );
       } else {
         Navigator.pushReplacement(
           context,
@@ -76,8 +89,8 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.red,
+          content: Text('Authentication failed: ${e.toString()}'),
+          backgroundColor: Colors.redAccent,
         ),
       );
     } finally {
@@ -85,241 +98,267 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // ✅ disable back navigation for login screen
+  Future<bool> _onWillPop() async {
+    // prevent closing app accidentally
+    final shouldExit = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit App?'),
+        content: const Text('Do you want to close the app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+    return shouldExit ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF10B981), Color(0xFF059669)],
+    return WillPopScope(
+      onWillPop: _onWillPop, // ✅ added safe back handler
+      child: Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF10B981), Color(0xFF059669)],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: screenWidth * 0.06,
-                vertical: 20,
-              ),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.06,
+                  vertical: 20,
                 ),
-                child: Padding(
-                  padding: EdgeInsets.all(screenWidth * 0.06),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.shopping_bag,
-                          size: screenHeight * 0.08,
-                          color: const Color(0xFF10B981),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Near Expiry Market',
-                          style: GoogleFonts.poppins(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
+                child: Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(screenWidth * 0.06),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.shopping_bag,
+                            size: screenHeight * 0.08,
                             color: const Color(0xFF10B981),
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Save Money, Reduce Waste',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Signup Role Selector
-                        if (_isSignUp) ...[
+                          const SizedBox(height: 12),
                           Text(
-                            'I am a:',
+                            'Near Expiry Market',
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF10B981),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Save Money, Reduce Waste',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () =>
-                                      setState(() => _selectedRole = 'Customer'),
-                                  child: Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: _selectedRole == 'Customer'
-                                          ? const Color(0xFF10B981)
-                                          : Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
+                          const SizedBox(height: 24),
+
+                          // Signup Role Selector
+                          if (_isSignUp) ...[
+                            Text(
+                              'I am a:',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () =>
+                                        setState(() => _selectedRole = 'Customer'),
+                                    child: Container(
+                                      padding:
+                                          const EdgeInsets.symmetric(vertical: 12),
+                                      decoration: BoxDecoration(
                                         color: _selectedRole == 'Customer'
                                             ? const Color(0xFF10B981)
-                                            : Colors.grey.shade300,
+                                            : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: _selectedRole == 'Customer'
+                                              ? const Color(0xFF10B981)
+                                              : Colors.grey.shade300,
+                                        ),
                                       ),
-                                    ),
-                                    child: Text(
-                                      'Customer',
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.poppins(
-                                        color: _selectedRole == 'Customer'
-                                            ? Colors.white
-                                            : Colors.black87,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
+                                      child: Text(
+                                        'Customer',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.poppins(
+                                          color: _selectedRole == 'Customer'
+                                              ? Colors.white
+                                              : Colors.black87,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () =>
-                                      setState(() => _selectedRole = 'Shop Owner'),
-                                  child: Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 12),
-                                    decoration: BoxDecoration(
-                                      color: _selectedRole == 'Shop Owner'
-                                          ? const Color(0xFF10B981)
-                                          : Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => setState(
+                                        () => _selectedRole = 'Shop Owner'),
+                                    child: Container(
+                                      padding:
+                                          const EdgeInsets.symmetric(vertical: 12),
+                                      decoration: BoxDecoration(
                                         color: _selectedRole == 'Shop Owner'
                                             ? const Color(0xFF10B981)
-                                            : Colors.grey.shade300,
+                                            : Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: _selectedRole == 'Shop Owner'
+                                              ? const Color(0xFF10B981)
+                                              : Colors.grey.shade300,
+                                        ),
                                       ),
-                                    ),
-                                    child: Text(
-                                      'Shop Owner',
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.poppins(
-                                        color: _selectedRole == 'Shop Owner'
-                                            ? Colors.white
-                                            : Colors.black87,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 13,
+                                      child: Text(
+                                        'Shop Owner',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.poppins(
+                                          color: _selectedRole == 'Shop Owner'
+                                              ? Colors.white
+                                              : Colors.black87,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+
+                          // Email field
+                          TextField(
+                            controller: _emailController,
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              labelStyle: const TextStyle(fontSize: 14),
+                              prefixIcon: const Icon(Icons.email,
+                                  color: Color(0xFF10B981), size: 20),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            ],
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF10B981), width: 2),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 14),
+                            ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
+
+                          // Password field
+                          TextField(
+                            controller: _passwordController,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              labelStyle: const TextStyle(fontSize: 14),
+                              prefixIcon: const Icon(Icons.lock,
+                                  color: Color(0xFF10B981), size: 20),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() =>
+                                      _obscurePassword = !_obscurePassword);
+                                },
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF10B981), width: 2),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 14),
+                            ),
+                            obscureText: _obscurePassword,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Login/Signup Button
+                          _isLoading
+                              ? const CircularProgressIndicator()
+                              : ElevatedButton(
+                                  onPressed: _authenticate,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF10B981),
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size(double.infinity, 50),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 2,
+                                  ),
+                                  child: Text(
+                                    _isSignUp ? 'Sign Up' : 'Login',
+                                    style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                          const SizedBox(height: 12),
+
+                          // Toggle login/signup
+                          TextButton(
+                            onPressed: () {
+                              setState(() => _isSignUp = !_isSignUp);
+                            },
+                            child: Text(
+                              _isSignUp
+                                  ? 'Already have an account? Login'
+                                  : 'Don\'t have an account? Sign Up',
+                              style: const TextStyle(
+                                  color: Color(0xFF10B981), fontSize: 13),
+                            ),
+                          ),
                         ],
-
-                        // Email field
-                        TextField(
-                          controller: _emailController,
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            labelStyle: const TextStyle(fontSize: 14),
-                            prefixIcon: const Icon(Icons.email,
-                                color: Color(0xFF10B981), size: 20),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: Color(0xFF10B981), width: 2),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 14),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Password field
-                        TextField(
-                          controller: _passwordController,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            labelStyle: const TextStyle(fontSize: 14),
-                            prefixIcon: const Icon(Icons.lock,
-                                color: Color(0xFF10B981), size: 20),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: Colors.grey,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                setState(
-                                    () => _obscurePassword = !_obscurePassword);
-                              },
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: Color(0xFF10B981), width: 2),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 14),
-                          ),
-                          obscureText: _obscurePassword,
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Login/Signup Button
-                        _isLoading
-                            ? const CircularProgressIndicator()
-                            : ElevatedButton(
-                                onPressed: _authenticate,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF10B981),
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size(double.infinity, 50),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 2,
-                                ),
-                                child: Text(
-                                  _isSignUp ? 'Sign Up' : 'Login',
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                        const SizedBox(height: 12),
-
-                        // Toggle login/signup
-                        TextButton(
-                          onPressed: () {
-                            setState(() => _isSignUp = !_isSignUp);
-                          },
-                          child: Text(
-                            _isSignUp
-                                ? 'Already have an account? Login'
-                                : 'Don\'t have an account? Sign Up',
-                            style: const TextStyle(
-                                color: Color(0xFF10B981), fontSize: 13),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

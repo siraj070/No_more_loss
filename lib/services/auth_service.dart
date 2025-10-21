@@ -1,41 +1,41 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+class AuthService extends ChangeNotifier {
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
-  // Sign in with email and password
-  Future<User?> signIn(String email, String password) async {
-    try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return userCredential.user;
-    } catch (e) {
-      throw Exception('Login failed: ${e.toString()}');
-    }
-  }
+  User? getCurrentUser() => _firebaseAuth.currentUser;
 
-  // Sign up with email and password
+  Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
+
   Future<User?> signUp(String email, String password) async {
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      final cred = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return userCredential.user;
+      notifyListeners();
+      return cred.user;
     } catch (e) {
-      throw Exception('Sign up failed: ${e.toString()}');
+      throw Exception("Signup failed: $e");
     }
   }
 
-  // Sign out
-  Future<void> signOut() async {
-    await _auth.signOut();
+  Future<User?> signIn(String email, String password) async {
+    try {
+      final cred = await _firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      notifyListeners();
+      return cred.user;
+    } catch (e) {
+      throw Exception("Login failed: $e");
+    }
   }
 
-  // Get current user
-  User? getCurrentUser() {
-    return _auth.currentUser;
+  Future<void> signOut() async {
+    await _firebaseAuth.signOut();
+    notifyListeners();
   }
 }

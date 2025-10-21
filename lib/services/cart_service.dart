@@ -1,48 +1,26 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../models/product.dart';
-import '../models/cart_item.dart';
 
 class CartService extends ChangeNotifier {
-  final List<CartItem> _items = [];
+  final List<Product> _cartItems = [];
 
-  List<CartItem> get items => _items;
-
-  int get itemCount => _items.length;
-
+  List<Product> get items => _cartItems;
+  int get itemCount => _cartItems.length;
   double get totalAmount =>
-      _items.fold(0.0, (sum, item) => sum + item.totalPrice);
+      _cartItems.fold(0, (sum, item) => sum + (item.price ?? 0));
 
-  void addToCart(Product product) {
-    final existingIndex =
-        _items.indexWhere((item) => item.product.id == product.id);
-
-    if (existingIndex >= 0) {
-      _items[existingIndex].quantity++;
-    } else {
-      _items.add(CartItem(product: product, quantity: 1));
-    }
+  void addItem(Product product) {
+    _cartItems.add(product);
     notifyListeners();
   }
 
-  void removeFromCart(String productId) {
-    _items.removeWhere((item) => item.product.id == productId);
+  void removeItem(Product product) {
+    _cartItems.remove(product);
     notifyListeners();
-  }
-
-  void updateQuantity(String productId, int quantity) {
-    final index = _items.indexWhere((item) => item.product.id == productId);
-    if (index >= 0) {
-      if (quantity > 0) {
-        _items[index].quantity = quantity;
-      } else {
-        _items.removeAt(index);
-      }
-      notifyListeners();
-    }
   }
 
   void clearCart() {
-    _items.clear();
+    _cartItems.clear();
     notifyListeners();
   }
 }

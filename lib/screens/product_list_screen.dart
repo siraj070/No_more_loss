@@ -15,8 +15,6 @@ import 'login_screen.dart';
 import 'order_history_screen.dart';
 import 'shop_owner_dashboard.dart';
 import 'checkout_screen.dart';
-
-// 👇 newly added imports
 import 'settings/customer_settings.dart';
 import '../utils/slide_transition.dart';
 
@@ -52,7 +50,22 @@ class _ProductListScreenState extends State<ProductListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserRole();
+    _checkUserSession();
+  }
+
+  // ✅ Block unauthorized users
+  void _checkUserSession() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      });
+    } else {
+      _loadUserRole();
+    }
   }
 
   Future<void> _loadUserRole() async {
@@ -130,6 +143,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   Future<void> _logout() async {
     await _authService.signOut();
+    if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
   }
 
@@ -142,6 +156,22 @@ class _ProductListScreenState extends State<ProductListScreen> {
     }).toList();
   }
 
+  // ✅ confirm before exiting app
+  Future<bool> _onWillPop() async {
+    final shouldExit = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit App?'),
+        content: const Text('Do you want to close the app?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
+        ],
+      ),
+    );
+    return shouldExit ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartService = Provider.of<CartService>(context);
@@ -150,214 +180,219 @@ class _ProductListScreenState extends State<ProductListScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 160,
-            floating: false,
-            pinned: true,
-            backgroundColor: const Color(0xFF10B981),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Fresh Deals 🔥',
-                          style: GoogleFonts.poppins(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          'Save 50-70% on Near Expiry Products',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
-                          ),
-                        ),
-                      ],
+    return WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        body: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 160,
+              floating: false,
+              pinned: true,
+              backgroundColor: const Color(0xFF10B981),
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
                   ),
-                ),
-              ),
-            ),
-            actions: [
-              if (_userRole == 'Customer')
-                IconButton(
-                  icon: const Icon(Icons.receipt_long, color: Colors.white),
-                  tooltip: 'My Orders',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-                  ),
-                ),
-              if (_userRole == 'Shop Owner')
-                IconButton(
-                  icon: const Icon(Icons.dashboard, color: Colors.white),
-                  tooltip: 'Dashboard',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ShopOwnerDashboard()),
-                  ),
-                ),
-              // ⚙️ settings icon for all roles
-              IconButton(
-                icon: const Icon(Icons.settings, color: Colors.white),
-                tooltip: 'Settings',
-                onPressed: () {
-                  Navigator.of(context).push(SlideRightRoute(page: const CustomerSettingsScreen()));
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white),
-                onPressed: _logout,
-              ),
-            ],
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (value) => setState(() => _searchQuery = value),
-                  decoration: InputDecoration(
-                    hintText: 'Search products...',
-                    hintStyle: GoogleFonts.poppins(color: Colors.grey),
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFF10B981)),
-                    border: InputBorder.none,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 50,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  final category = categories[index];
-                  final isSelected = _selectedCategory == category;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(category),
-                      selected: isSelected,
-                      onSelected: (selected) => setState(() => _selectedCategory = category),
-                      backgroundColor: Colors.white,
-                      selectedColor: const Color(0xFF10B981),
-                      labelStyle: GoogleFonts.poppins(
-                        color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(
-                          color: isSelected
-                              ? const Color(0xFF10B981)
-                              : Colors.grey.shade300,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: StreamBuilder<List<Product>>(
-              stream: _productService.getProducts(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SliverFillRemaining(
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return SliverFillRemaining(
-                    child: Center(
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          const Icon(Icons.shopping_basket_outlined,
-                              size: 100, color: Colors.grey),
-                          const SizedBox(height: 16),
                           Text(
-                            'No products available',
-                            style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey),
+                            'Fresh Deals 🔥',
+                            style: GoogleFonts.poppins(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            'Save 50-70% on Near Expiry Products',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                }
-                final filteredProducts = _filterProducts(snapshot.data!);
-                return SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
                   ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      return ProductCard(
-                        product: filteredProducts[index],
-                        isCustomer: _userRole == 'Customer',
-                      );
-                    },
-                    childCount: filteredProducts.length,
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: _userRole == 'Customer' && cartService.itemCount > 0
-          ? FloatingActionButton.extended(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CartScreen()),
+                ),
               ),
-              icon: const Icon(Icons.shopping_cart),
-              label: Text(
-                  '${cartService.itemCount} items • ₹${cartService.totalAmount.toStringAsFixed(0)}'),
-              backgroundColor: const Color(0xFFF59E0B),
-            )
-          : null,
+              actions: [
+                if (_userRole == 'Customer')
+                  IconButton(
+                    icon: const Icon(Icons.receipt_long, color: Colors.white),
+                    tooltip: 'My Orders',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+                    ),
+                  ),
+                if (_userRole == 'Shop Owner')
+                  IconButton(
+                    icon: const Icon(Icons.dashboard, color: Colors.white),
+                    tooltip: 'Dashboard',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ShopOwnerDashboard()),
+                    ),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.settings, color: Colors.white),
+                  tooltip: 'Settings',
+                  onPressed: () {
+                    Navigator.of(context)
+                        .push(SlideRightRoute(page: const CustomerSettingsScreen()));
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.white),
+                  onPressed: _logout,
+                ),
+              ],
+            ),
+            // 🔍 search & category filters
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                    decoration: InputDecoration(
+                      hintText: 'Search products...',
+                      hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                      prefixIcon: const Icon(Icons.search, color: Color(0xFF10B981)),
+                      border: InputBorder.none,
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 50,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    final category = categories[index];
+                    final isSelected = _selectedCategory == category;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(category),
+                        selected: isSelected,
+                        onSelected: (selected) => setState(() => _selectedCategory = category),
+                        backgroundColor: Colors.white,
+                        selectedColor: const Color(0xFF10B981),
+                        labelStyle: GoogleFonts.poppins(
+                          color: isSelected ? Colors.white : Colors.black87,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isSelected
+                                ? const Color(0xFF10B981)
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            // 🛒 Product list
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: StreamBuilder<List<Product>>(
+                stream: _productService.getProducts(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.shopping_basket_outlined,
+                                size: 100, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No products available',
+                              style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  final filteredProducts = _filterProducts(snapshot.data!);
+                  return SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                      childAspectRatio: 0.75,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        return ProductCard(
+                          product: filteredProducts[index],
+                          isCustomer: _userRole == 'Customer',
+                        );
+                      },
+                      childCount: filteredProducts.length,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton: _userRole == 'Customer' && cartService.itemCount > 0
+            ? FloatingActionButton.extended(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CartScreen()),
+                ),
+                icon: const Icon(Icons.shopping_cart),
+                label: Text(
+                    '${cartService.itemCount} items • ₹${cartService.totalAmount.toStringAsFixed(0)}'),
+                backgroundColor: const Color(0xFFF59E0B),
+              )
+            : null,
+      ),
     );
   }
 }

@@ -1,44 +1,31 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/product.dart';
 
-class ProductService {
-  final CollectionReference _products =
+class ProductService extends ChangeNotifier {
+  final CollectionReference _productCollection =
       FirebaseFirestore.instance.collection('products');
 
-  /// ✅ Add product
-  Future<void> addProduct(Product product) async {
-    await _products.add({
-      ...product.toJson(),
-      'createdAt': Timestamp.now(), // required for sorting & visibility
+  Stream<List<Product>> getProducts() {
+    return _productCollection.snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return Product.fromFirestore(doc);
+      }).toList();
     });
   }
 
-  /// ✅ Get all products (for customers)
-  Stream<List<Product>> getProducts() {
-    return _products
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList());
+  Future<void> addProduct(Product product) async {
+    await _productCollection.add(product.toMap());
+    notifyListeners();
   }
 
-  /// ✅ Get products for a specific shop owner
-  Stream<List<Product>> getProductsByOwner(String ownerId) {
-    return _products
-        .where('ownerId', isEqualTo: ownerId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList());
+  Future<void> updateProduct(String id, Product updatedProduct) async {
+    await _productCollection.doc(id).update(updatedProduct.toMap());
+    notifyListeners();
   }
 
-  /// ✅ Update existing product
-  Future<void> updateProduct(Product product) async {
-    await _products.doc(product.id).update(product.toJson());
-  }
-
-  /// ✅ Delete a product
   Future<void> deleteProduct(String id) async {
-    await _products.doc(id).delete();
+    await _productCollection.doc(id).delete();
+    notifyListeners();
   }
 }
