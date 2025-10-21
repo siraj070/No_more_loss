@@ -4,28 +4,42 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'services/auth_service.dart';
 import 'services/cart_service.dart';
 import 'services/product_service.dart';
+
 import 'screens/login_screen.dart';
 import 'screens/product_list_screen.dart';
 import 'screens/shop_owner_dashboard.dart';
 import 'screens/admin_dashboard_screen.dart';
 import 'screens/my_orders_screen.dart';
 
+/// ✅ Real Firebase config for `shop-cust` project
+class DefaultFirebaseOptions {
+  static const FirebaseOptions currentPlatform = FirebaseOptions(
+    apiKey: "AIzaSyBCg2JMJQcWEKUJ3kBY1ok2PmjQeo-Cf28",
+    appId: "1:1003283641297:web:4b0c198595db271d27e6f0",
+    messagingSenderId: "1003283641297",
+    projectId: "shop-cust",
+    authDomain: "shop-cust.firebaseapp.com",
+    storageBucket: "shop-cust.appspot.com",
+    measurementId: "G-TWMHE5KGG8",
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: "AIzaSyBCg2JMJQcWEKUJ3kBY1ok2PmjQeo-Cf28",
-      authDomain: "shop-cust.firebaseapp.com",
-      projectId: "shop-cust",
-      storageBucket: "shop-cust.appspot.com",
-      messagingSenderId: "1003283641297",
-      appId: "1:1003283641297:web:00b498906c8adb5f27e6f0",
-      measurementId: "G-VHVXN7WQQD",
-    ),
-  );
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint("✅ Firebase initialized successfully");
+  } catch (e) {
+    debugPrint("⚠️ Firebase initialization failed: $e");
+  }
+
   runApp(const MyApp());
 }
 
@@ -56,13 +70,16 @@ class MyApp extends StatelessWidget {
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
 
+  /// Loads the correct home screen based on user role from Firestore
   Future<Widget> _getHomeScreen(User user) async {
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
+
       final role = doc.data()?['role'] ?? 'Customer';
+
       if (role == 'Admin') return const AdminDashboardScreen();
       if (role == 'Shop Owner') return const ShopOwnerDashboard();
       return const ProductListScreen();
@@ -85,37 +102,49 @@ class AuthGate extends StatelessWidget {
       builder: (context, authSnap) {
         if (authSnap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-              body: Center(
-                  child: CircularProgressIndicator(
-            color: Colors.green,
-          )));
+            body: Center(
+              child: CircularProgressIndicator(color: Colors.green),
+            ),
+          );
         }
+
         if (authSnap.hasError) {
           return Scaffold(
             body: Center(
-                child: Text('Auth Error: ${authSnap.error}',
-                    style: TextStyle(color: Colors.red[700]))),
+              child: Text(
+                'Auth Error: ${authSnap.error}',
+                style: TextStyle(color: Colors.red[700]),
+              ),
+            ),
           );
         }
+
         if (!authSnap.hasData) {
           return const LoginScreen();
         }
+
         return FutureBuilder<Widget>(
           future: _getHomeScreen(authSnap.data!),
           builder: (context, roleSnap) {
             if (roleSnap.connectionState == ConnectionState.waiting) {
               return const Scaffold(
-                  body: Center(
-                      child: CircularProgressIndicator(
-                color: Colors.green,
-              )));
+                body: Center(
+                  child: CircularProgressIndicator(color: Colors.green),
+                ),
+              );
             }
+
             if (roleSnap.hasError) {
               return Scaffold(
-                  body: Center(
-                      child: Text('Error: ${roleSnap.error}',
-                          style: TextStyle(color: Colors.red[700]))));
+                body: Center(
+                  child: Text(
+                    'Error: ${roleSnap.error}',
+                    style: TextStyle(color: Colors.red[700]),
+                  ),
+                ),
+              );
             }
+
             return roleSnap.data!;
           },
         );

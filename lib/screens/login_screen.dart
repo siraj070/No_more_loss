@@ -32,12 +32,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       if (_isLogin) {
+        // --- Login ---
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login successful!')),
+        );
       } else {
-        final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        // --- Sign Up ---
+        final credential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
@@ -50,11 +56,45 @@ class _LoginScreenState extends State<LoginScreen> {
           'role': _selectedRole,
           'createdAt': FieldValue.serverTimestamp(),
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created successfully!')),
+        );
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint('⚠️ FirebaseAuth error: ${e.code} — ${e.message}');
+      String message = 'Authentication failed';
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No user found with this email.';
+          break;
+        case 'wrong-password':
+          message = 'Incorrect password.';
+          break;
+        case 'email-already-in-use':
+          message = 'Email is already registered.';
+          break;
+        case 'invalid-email':
+          message = 'Invalid email format.';
+          break;
+        case 'network-request-failed':
+          message = 'Network error. Please check your internet connection.';
+          break;
+        default:
+          message = e.message ?? 'Login error';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.message ?? 'Authentication failed'),
+          content: Text(message),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    } catch (e) {
+      debugPrint('⚠️ Other error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Unexpected error: $e'),
           backgroundColor: const Color(0xFFEF4444),
         ),
       );
@@ -137,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Email Field
+                        // Email
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -150,16 +190,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade200),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: Color(0xFF10B981), width: 2),
                             ),
                           ),
                           validator: (value) {
@@ -174,29 +204,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Password Field
+                        // Password
                         TextFormField(
                           controller: _passwordController,
                           obscureText: true,
                           decoration: InputDecoration(
                             labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outlined,
+                            prefixIcon: const Icon(Icons.lock_outline,
                                 color: Color(0xFF10B981)),
                             filled: true,
                             fillColor: const Color(0xFFF9FAFB),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide:
-                                  BorderSide(color: Colors.grey.shade200),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                  color: Color(0xFF10B981), width: 2),
                             ),
                           ),
                           validator: (value) {
@@ -210,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
 
-                        // Role Selection (only for signup)
+                        // Role (Signup only)
                         if (!_isLogin) ...[
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
@@ -225,16 +245,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: BorderSide.none,
                               ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    BorderSide(color: Colors.grey.shade200),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF10B981), width: 2),
-                              ),
                             ),
                             items: ['Customer', 'Shop Owner', 'Admin']
                                 .map((role) => DropdownMenuItem(
@@ -242,15 +252,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                       child: Text(role),
                                     ))
                                 .toList(),
-                            onChanged: (value) {
-                              setState(() => _selectedRole = value!);
-                            },
+                            onChanged: (value) =>
+                                setState(() => _selectedRole = value!),
                           ),
                         ],
-
                         const SizedBox(height: 24),
 
-                        // Submit Button
+                        // Submit button
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -262,7 +270,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              elevation: 0,
                             ),
                             child: _isLoading
                                 ? const SizedBox(
@@ -282,14 +289,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                           ),
                         ),
-
                         const SizedBox(height: 16),
 
-                        // Toggle Login/Signup
+                        // Toggle
                         TextButton(
-                          onPressed: () {
-                            setState(() => _isLogin = !_isLogin);
-                          },
+                          onPressed: () =>
+                              setState(() => _isLogin = !_isLogin),
                           child: Text(
                             _isLogin
                                 ? "Don't have an account? Sign Up"
