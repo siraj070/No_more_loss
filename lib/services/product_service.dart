@@ -1,31 +1,60 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/product.dart';
 
 class ProductService extends ChangeNotifier {
-  final CollectionReference _productCollection =
-      FirebaseFirestore.instance.collection('products');
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Stream<List<Product>> getProducts() {
-    return _productCollection.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Product.fromFirestore(doc);
-      }).toList();
-    });
+  // Get all products
+  Stream<List<Product>> getAllProducts() {
+    return _firestore
+        .collection('products')
+        .orderBy('expiryDate')
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList());
   }
 
+  // Get products by owner
+  Stream<List<Product>> getProductsByOwner(String ownerId) {
+    return _firestore
+        .collection('products')
+        .where('ownerId', isEqualTo: ownerId)
+        .orderBy('expiryDate')
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList());
+  }
+
+  // Get products by category
+  Stream<List<Product>> getProductsByCategory(String category) {
+    return _firestore
+        .collection('products')
+        .where('category', isEqualTo: category)
+        .orderBy('expiryDate')
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Product.fromFirestore(doc)).toList());
+  }
+
+  // Add product
   Future<void> addProduct(Product product) async {
-    await _productCollection.add(product.toMap());
+    await _firestore.collection('products').add(product.toMap());
     notifyListeners();
   }
 
-  Future<void> updateProduct(String id, Product updatedProduct) async {
-    await _productCollection.doc(id).update(updatedProduct.toMap());
+  // Update product
+  Future<void> updateProduct(Product product) async {
+    await _firestore
+        .collection('products')
+        .doc(product.id)
+        .update(product.toMap());
     notifyListeners();
   }
 
-  Future<void> deleteProduct(String id) async {
-    await _productCollection.doc(id).delete();
+  // Delete product
+  Future<void> deleteProduct(String productId) async {
+    await _firestore.collection('products').doc(productId).delete();
     notifyListeners();
   }
 }

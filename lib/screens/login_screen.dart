@@ -1,368 +1,310 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-import '../services/auth_service.dart';
-import 'product_list_screen.dart';
-import 'shop_owner_dashboard.dart';
-import 'admin_dashboard_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  _LoginScreenState createState() => _LoginScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
+  bool _isLogin = true;
   bool _isLoading = false;
-  bool _isSignUp = false;
-  bool _obscurePassword = true;
   String _selectedRole = 'Customer';
 
-  Future<void> _authenticate() async {
-    // ✅ Mandatory field check
-    if (_emailController.text.trim().isEmpty ||
-        _passwordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all mandatory fields'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-      return;
-    }
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    try {
-      User? user;
 
-      if (_isSignUp) {
-        user = await _authService.signUp(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
+    try {
+      if (_isLogin) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+      } else {
+        final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
         );
 
-        await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(credential.user!.uid)
+            .set({
           'email': _emailController.text.trim(),
           'role': _selectedRole,
-          'createdAt': Timestamp.now(),
+          'createdAt': FieldValue.serverTimestamp(),
         });
-      } else {
-        await _authService.signIn(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-        );
-        user = FirebaseAuth.instance.currentUser;
       }
-
-      // ✅ Check role from Firestore
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .get();
-
-      final role = doc['role'] ?? 'Customer';
-
-      // ✅ Redirect based on role
-      if (!mounted) return;
-      if (role == 'Admin') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-        );
-      } else if (role == 'Shop Owner') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ShopOwnerDashboard()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const ProductListScreen()),
-        );
-      }
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Authentication failed: ${e.toString()}'),
-          backgroundColor: Colors.redAccent,
+          content: Text(e.message ?? 'Authentication failed'),
+          backgroundColor: const Color(0xFFEF4444),
         ),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  // ✅ disable back navigation for login screen
-  Future<bool> _onWillPop() async {
-    // prevent closing app accidentally
-    final shouldExit = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Exit App?'),
-        content: const Text('Do you want to close the app?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
-          ),
-        ],
-      ),
-    );
-    return shouldExit ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    return WillPopScope(
-      onWillPop: _onWillPop, // ✅ added safe back handler
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF10B981), Color(0xFF059669)],
-            ),
-          ),
-          child: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: screenWidth * 0.06,
-                  vertical: 20,
-                ),
-                child: Card(
-                  elevation: 8,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Padding(
-                    padding: EdgeInsets.all(screenWidth * 0.06),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 400),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.shopping_bag,
-                            size: screenHeight * 0.08,
-                            color: const Color(0xFF10B981),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Near Expiry Market',
-                            style: GoogleFonts.poppins(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF10B981),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Save Money, Reduce Waste',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
+                  child: const Icon(
+                    Icons.local_grocery_store,
+                    size: 50,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 24),
 
-                          // Signup Role Selector
-                          if (_isSignUp) ...[
-                            Text(
-                              'I am a:',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () =>
-                                        setState(() => _selectedRole = 'Customer'),
-                                    child: Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(vertical: 12),
-                                      decoration: BoxDecoration(
-                                        color: _selectedRole == 'Customer'
-                                            ? const Color(0xFF10B981)
-                                            : Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: _selectedRole == 'Customer'
-                                              ? const Color(0xFF10B981)
-                                              : Colors.grey.shade300,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'Customer',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.poppins(
-                                          color: _selectedRole == 'Customer'
-                                              ? Colors.white
-                                              : Colors.black87,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () => setState(
-                                        () => _selectedRole = 'Shop Owner'),
-                                    child: Container(
-                                      padding:
-                                          const EdgeInsets.symmetric(vertical: 12),
-                                      decoration: BoxDecoration(
-                                        color: _selectedRole == 'Shop Owner'
-                                            ? const Color(0xFF10B981)
-                                            : Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: _selectedRole == 'Shop Owner'
-                                              ? const Color(0xFF10B981)
-                                              : Colors.grey.shade300,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        'Shop Owner',
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.poppins(
-                                          color: _selectedRole == 'Shop Owner'
-                                              ? Colors.white
-                                              : Colors.black87,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                          ],
+                Text(
+                  'No More Loss',
+                  style: GoogleFonts.poppins(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+                const SizedBox(height: 8),
 
-                          // Email field
-                          TextField(
-                            controller: _emailController,
+                Text(
+                  'Save money, reduce waste',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 40),
+
+                // Form Card
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        Text(
+                          _isLogin ? 'Welcome Back!' : 'Create Account',
+                          style: GoogleFonts.poppins(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Email Field
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: const Icon(Icons.email_outlined,
+                                color: Color(0xFF10B981)),
+                            filled: true,
+                            fillColor: const Color(0xFFF9FAFB),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF10B981), width: 2),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter email';
+                            }
+                            if (!value.contains('@')) {
+                              return 'Please enter valid email';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Password Field
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outlined,
+                                color: Color(0xFF10B981)),
+                            filled: true,
+                            fillColor: const Color(0xFFF9FAFB),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade200),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF10B981), width: 2),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter password';
+                            }
+                            if (value.length < 6) {
+                              return 'Password must be at least 6 characters';
+                            }
+                            return null;
+                          },
+                        ),
+
+                        // Role Selection (only for signup)
+                        if (!_isLogin) ...[
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            value: _selectedRole,
                             decoration: InputDecoration(
-                              labelText: 'Email',
-                              labelStyle: const TextStyle(fontSize: 14),
-                              prefixIcon: const Icon(Icons.email,
-                                  color: Color(0xFF10B981), size: 20),
+                              labelText: 'Role',
+                              prefixIcon: const Icon(Icons.person_outline,
+                                  color: Color(0xFF10B981)),
+                              filled: true,
+                              fillColor: const Color(0xFFF9FAFB),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade200),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
                                     color: Color(0xFF10B981), width: 2),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 14),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Password field
-                          TextField(
-                            controller: _passwordController,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              labelStyle: const TextStyle(fontSize: 14),
-                              prefixIcon: const Icon(Icons.lock,
-                                  color: Color(0xFF10B981), size: 20),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  color: Colors.grey,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  setState(() =>
-                                      _obscurePassword = !_obscurePassword);
-                                },
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF10B981), width: 2),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 14),
-                            ),
-                            obscureText: _obscurePassword,
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Login/Signup Button
-                          _isLoading
-                              ? const CircularProgressIndicator()
-                              : ElevatedButton(
-                                  onPressed: _authenticate,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF10B981),
-                                    foregroundColor: Colors.white,
-                                    minimumSize: const Size(double.infinity, 50),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    elevation: 2,
-                                  ),
-                                  child: Text(
-                                    _isSignUp ? 'Sign Up' : 'Login',
-                                    style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                          const SizedBox(height: 12),
-
-                          // Toggle login/signup
-                          TextButton(
-                            onPressed: () {
-                              setState(() => _isSignUp = !_isSignUp);
+                            items: ['Customer', 'Shop Owner', 'Admin']
+                                .map((role) => DropdownMenuItem(
+                                      value: role,
+                                      child: Text(role),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() => _selectedRole = value!);
                             },
-                            child: Text(
-                              _isSignUp
-                                  ? 'Already have an account? Login'
-                                  : 'Don\'t have an account? Sign Up',
-                              style: const TextStyle(
-                                  color: Color(0xFF10B981), fontSize: 13),
-                            ),
                           ),
                         ],
-                      ),
+
+                        const SizedBox(height: 24),
+
+                        // Submit Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    _isLogin ? 'Login' : 'Sign Up',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Toggle Login/Signup
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _isLogin = !_isLogin);
+                          },
+                          child: Text(
+                            _isLogin
+                                ? "Don't have an account? Sign Up"
+                                : 'Already have an account? Login',
+                            style: GoogleFonts.poppins(
+                              color: const Color(0xFF10B981),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),

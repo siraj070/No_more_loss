@@ -1,41 +1,64 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService extends ChangeNotifier {
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  User? getCurrentUser() => _firebaseAuth.currentUser;
+  User? get currentUser => _auth.currentUser;
+  
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
-
-  Future<User?> signUp(String email, String password) async {
+  // Sign in with email and password
+  Future<User?> signInWithEmailPassword(String email, String password) async {
     try {
-      final cred = await _firebaseAuth.createUserWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      notifyListeners();
-      return cred.user;
+      return credential.user;
     } catch (e) {
-      throw Exception("Signup failed: $e");
+      rethrow;
     }
   }
 
-  Future<User?> signIn(String email, String password) async {
+  // Register with email, password, and role
+  Future<User?> registerWithEmailPassword(
+    String email,
+    String password,
+    String role,
+  ) async {
     try {
-      final cred = await _firebaseAuth.signInWithEmailAndPassword(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      notifyListeners();
-      return cred.user;
+      if (credential.user != null) {
+        await _firestore.collection('users').doc(credential.user!.uid).set({
+          'email': email,
+          'role': role,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+      return credential.user;
     } catch (e) {
-      throw Exception("Login failed: $e");
+      rethrow;
     }
   }
 
+  // Sign out
   Future<void> signOut() async {
-    await _firebaseAuth.signOut();
-    notifyListeners();
+    await _auth.signOut();
+  }
+
+  // Fetch user role
+  Future<String> getUserRole(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      return doc.data()?['role'] ?? 'Customer';
+    } catch (e) {
+      return 'Customer';
+    }
   }
 }

@@ -4,14 +4,17 @@ class SlideRightRoute extends PageRouteBuilder {
   final Widget page;
   SlideRightRoute({required this.page})
       : super(
-          transitionDuration: const Duration(milliseconds: 280),
-          reverseTransitionDuration: const Duration(milliseconds: 240),
-          pageBuilder: (_, __, ___) => page,
-          transitionsBuilder: (_, animation, __, child) {
-            final offsetTween =
-                Tween<Offset>(begin: const Offset(1, 0), end: Offset.zero)
-                    .chain(CurveTween(curve: Curves.easeOutCubic));
-            return SlideTransition(position: animation.drive(offsetTween), child: child);
+          pageBuilder: (context, animation, secondaryAnimation) => page,
+          transitionsBuilder:
+              (context, animation, secondaryAnimation, child) {
+            const begin = Offset(1.0, 0.0);
+            const end = Offset.zero;
+            const curve = Curves.easeInOut;
+            var tween =
+                Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            var offsetAnimation = animation.drive(tween);
+            return SlideTransition(position: offsetAnimation, child: child);
           },
+          transitionDuration: const Duration(milliseconds: 300),
         );
 }

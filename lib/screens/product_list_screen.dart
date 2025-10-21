@@ -2,40 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-import '../models/product.dart';
 import '../services/product_service.dart';
 import '../services/cart_service.dart';
-import '../services/auth_service.dart';
-import '../widgets/product_card.dart';
-import 'add_product_screen.dart';
+import '../models/product.dart';
+import 'product_detail_screen.dart';
 import 'cart_screen.dart';
-import 'login_screen.dart';
-import 'order_history_screen.dart';
-import 'shop_owner_dashboard.dart';
-import 'checkout_screen.dart';
-import 'settings/customer_settings.dart';
-import '../utils/slide_transition.dart';
+import 'my_orders_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
 
   @override
-  _ProductListScreenState createState() => _ProductListScreenState();
+  State<ProductListScreen> createState() => _ProductListScreenState();
 }
 
 class _ProductListScreenState extends State<ProductListScreen> {
-  final ProductService _productService = ProductService();
-  final AuthService _authService = AuthService();
-  final TextEditingController _searchController = TextEditingController();
-
-  String _userRole = '';
-  bool _isLoading = true;
   String _selectedCategory = 'All';
-  String _searchQuery = '';
-
-  final List<String> categories = [
+  final List<String> _categories = [
     'All',
     'Dairy',
     'Snacks',
@@ -48,350 +31,371 @@ class _ProductListScreenState extends State<ProductListScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _checkUserSession();
-  }
+  Widget build(BuildContext context) {
+    final productService = Provider.of<ProductService>(context);
+    final cartService = Provider.of<CartService>(context);
 
-  // ✅ Block unauthorized users
-  void _checkUserSession() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      });
-    } else {
-      _loadUserRole();
-    }
-  }
-
-  Future<void> _loadUserRole() async {
-    final user = _authService.getCurrentUser();
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (!doc.exists || doc.data()?['role'] == null) {
-        await _showRoleSelectionDialog();
-        return;
-      }
-      setState(() {
-        _userRole = doc.data()?['role'] ?? 'Customer';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _showRoleSelectionDialog() async {
-    String selectedRole = 'Customer';
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: Text('Select Your Role', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: StatefulBuilder(
-          builder: (BuildContext context, StateSetter setDialogState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile(
-                  title: const Text('Customer'),
-                  subtitle: const Text('Browse and buy products'),
-                  value: 'Customer',
-                  groupValue: selectedRole,
-                  onChanged: (value) => setDialogState(() => selectedRole = value!),
-                  activeColor: const Color(0xFF10B981),
-                ),
-                RadioListTile(
-                  title: const Text('Shop Owner'),
-                  subtitle: const Text('Add and manage products'),
-                  value: 'Shop Owner',
-                  groupValue: selectedRole,
-                  onChanged: (value) => setDialogState(() => selectedRole = value!),
-                  activeColor: const Color(0xFF10B981),
-                ),
-              ],
-            );
-          },
-        ),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        title: Text('No More Loss',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        backgroundColor: const Color(0xFF10B981),
+        elevation: 0,
         actions: [
-          ElevatedButton(
-            onPressed: () async {
-              final user = _authService.getCurrentUser();
-              await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
-                'email': user.email,
-                'role': selectedRole,
-                'createdAt': Timestamp.now(),
-              });
-              Navigator.pop(dialogContext);
-              setState(() {
-                _userRole = selectedRole;
-                _isLoading = false;
-              });
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_outlined),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CartScreen()),
+                  );
+                },
+              ),
+              if (cartService.itemCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '${cartService.itemCount}',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'orders') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+                );
+              } else if (value == 'logout') {
+                FirebaseAuth.instance.signOut();
+              }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
-              foregroundColor: Colors.white,
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'orders',
+                child: Row(
+                  children: [
+                    Icon(Icons.receipt_long, color: Color(0xFF10B981)),
+                    SizedBox(width: 8),
+                    Text('My Orders'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Color(0xFFEF4444)),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Category Chips
+          Container(
+            height: 60,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                final category = _categories[index];
+                final isSelected = _selectedCategory == category;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(category),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedCategory = category;
+                      });
+                    },
+                    labelStyle: GoogleFonts.poppins(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    backgroundColor: Colors.white,
+                    selectedColor: const Color(0xFF10B981),
+                    elevation: 2,
+                  ),
+                );
+              },
             ),
-            child: const Text('Confirm'),
+          ),
+
+          // Products Grid
+          Expanded(
+            child: StreamBuilder<List<Product>>(
+              stream: _selectedCategory == 'All'
+                  ? productService.getAllProducts()
+                  : productService.getProductsByCategory(_selectedCategory),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inventory_2_outlined,
+                            size: 100, color: Colors.grey.shade300),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No products available',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final products = snapshot.data!;
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return _buildProductCard(product, cartService);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _logout() async {
-    await _authService.signOut();
-    if (!mounted) return;
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-  }
+  Widget _buildProductCard(Product product, CartService cartService) {
+    final daysLeft = product.expiryDate.difference(DateTime.now()).inDays;
+    final discountPercent = ((product.originalPrice -
+                product.discountedPrice) /
+            product.originalPrice *
+            100)
+        .toStringAsFixed(0);
 
-  List<Product> _filterProducts(List<Product> products) {
-    return products.where((product) {
-      final matchesCategory = _selectedCategory == 'All' || product.category == _selectedCategory;
-      final matchesSearch =
-          _searchQuery.isEmpty || product.name.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
-  }
-
-  // ✅ confirm before exiting app
-  Future<bool> _onWillPop() async {
-    final shouldExit = await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Exit App?'),
-        content: const Text('Do you want to close the app?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes')),
-        ],
-      ),
-    );
-    return shouldExit ?? false;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final cartService = Provider.of<CartService>(context);
-
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
-        body: CustomScrollView(
-          slivers: [
-            SliverAppBar(
-              expandedHeight: 160,
-              floating: false,
-              pinned: true,
-              backgroundColor: const Color(0xFF10B981),
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF059669)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => ProductDetailScreen(product: product)),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image & Discount
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: product.imageUrl.isNotEmpty
+                      ? Image.network(
+                          product.imageUrl,
+                          height: 120,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
+                        )
+                      : _buildPlaceholderImage(),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Fresh Deals 🔥',
-                            style: GoogleFonts.poppins(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            'Save 50-70% on Near Expiry Products',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                          ),
-                        ],
+                    child: Text(
+                      '$discountPercent% OFF',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                ),
-              ),
-              actions: [
-                if (_userRole == 'Customer')
-                  IconButton(
-                    icon: const Icon(Icons.receipt_long, color: Colors.white),
-                    tooltip: 'My Orders',
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-                    ),
-                  ),
-                if (_userRole == 'Shop Owner')
-                  IconButton(
-                    icon: const Icon(Icons.dashboard, color: Colors.white),
-                    tooltip: 'Dashboard',
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ShopOwnerDashboard()),
-                    ),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.settings, color: Colors.white),
-                  tooltip: 'Settings',
-                  onPressed: () {
-                    Navigator.of(context)
-                        .push(SlideRightRoute(page: const CustomerSettingsScreen()));
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.logout, color: Colors.white),
-                  onPressed: _logout,
                 ),
               ],
             ),
-            // 🔍 search & category filters
-            SliverToBoxAdapter(
+
+            // Details
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      product.name,
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
-                    ],
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (value) => setState(() => _searchQuery = value),
-                    decoration: InputDecoration(
-                      hintText: 'Search products...',
-                      hintStyle: GoogleFonts.poppins(color: Colors.grey),
-                      prefixIcon: const Icon(Icons.search, color: Color(0xFF10B981)),
-                      border: InputBorder.none,
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 50,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    final category = categories[index];
-                    final isSelected = _selectedCategory == category;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(category),
-                        selected: isSelected,
-                        onSelected: (selected) => setState(() => _selectedCategory = category),
-                        backgroundColor: Colors.white,
-                        selectedColor: const Color(0xFF10B981),
-                        labelStyle: GoogleFonts.poppins(
-                          color: isSelected ? Colors.white : Colors.black87,
+                    Text(
+                      product.category,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          '₹${product.discountedPrice.toStringAsFixed(0)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '₹${product.originalPrice.toStringAsFixed(0)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: daysLeft <= 3
+                            ? const Color(0xFFEF4444).withOpacity(0.1)
+                            : const Color(0xFFF59E0B).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        daysLeft <= 3
+                            ? '$daysLeft days left'
+                            : 'Exp: ${product.expiryDate.toLocal().toString().split(' ')[0]}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          color: daysLeft <= 3
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFFF59E0B),
                           fontWeight: FontWeight.w600,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: isSelected
-                                ? const Color(0xFF10B981)
-                                : Colors.grey.shade300,
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          cartService.addToCart(product);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${product.name} added to cart!'),
+                              backgroundColor: const Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: Text(
+                          'Add to Cart',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
-              ),
-            ),
-            // 🛒 Product list
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: StreamBuilder<List<Product>>(
-                stream: _productService.getProducts(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const SliverFillRemaining(
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return SliverFillRemaining(
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.shopping_basket_outlined,
-                                size: 100, color: Colors.grey),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No products available',
-                              style: GoogleFonts.poppins(fontSize: 18, color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-                  final filteredProducts = _filterProducts(snapshot.data!);
-                  return SliverGrid(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                      childAspectRatio: 0.75,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        return ProductCard(
-                          product: filteredProducts[index],
-                          isCustomer: _userRole == 'Customer',
-                        );
-                      },
-                      childCount: filteredProducts.length,
-                    ),
-                  );
-                },
               ),
             ),
           ],
         ),
-        floatingActionButton: _userRole == 'Customer' && cartService.itemCount > 0
-            ? FloatingActionButton.extended(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CartScreen()),
-                ),
-                icon: const Icon(Icons.shopping_cart),
-                label: Text(
-                    '${cartService.itemCount} items • ₹${cartService.totalAmount.toStringAsFixed(0)}'),
-                backgroundColor: const Color(0xFFF59E0B),
-              )
-            : null,
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Container(
+      height: 120,
+      width: double.infinity,
+      color: const Color(0xFF10B981).withOpacity(0.1),
+      child: const Icon(
+        Icons.local_grocery_store_outlined,
+        size: 50,
+        color: Color(0xFF10B981),
       ),
     );
   }

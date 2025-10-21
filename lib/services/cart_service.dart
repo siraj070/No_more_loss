@@ -1,26 +1,56 @@
 import 'package:flutter/foundation.dart';
 import '../models/product.dart';
+import '../models/cart_item.dart';
 
 class CartService extends ChangeNotifier {
-  final List<Product> _cartItems = [];
+  final Map<String, CartItem> _items = {};
 
-  List<Product> get items => _cartItems;
-  int get itemCount => _cartItems.length;
-  double get totalAmount =>
-      _cartItems.fold(0, (sum, item) => sum + (item.price ?? 0));
+  Map<String, CartItem> get items => {..._items};
+  
+  List<CartItem> get itemsList => _items.values.toList();
+  
+  int get itemCount => _items.length;
+  
+  double get totalAmount => _items.values.fold(
+    0.0, 
+    (sum, item) => sum + item.totalPrice,
+  );
 
-  void addItem(Product product) {
-    _cartItems.add(product);
+  void addToCart(Product product) {
+    if (_items.containsKey(product.id)) {
+      _items[product.id]!.quantity++;
+    } else {
+      _items[product.id] = CartItem(product: product, quantity: 1);
+    }
     notifyListeners();
   }
 
-  void removeItem(Product product) {
-    _cartItems.remove(product);
+  void updateQuantity(String productId, int newQuantity) {
+    if (!_items.containsKey(productId)) return;
+    
+    if (newQuantity <= 0) {
+      _items.remove(productId);
+    } else {
+      _items[productId]!.quantity = newQuantity;
+    }
+    notifyListeners();
+  }
+
+  void removeFromCart(String productId) {
+    _items.remove(productId);
     notifyListeners();
   }
 
   void clearCart() {
-    _cartItems.clear();
+    _items.clear();
     notifyListeners();
+  }
+
+  bool isInCart(String productId) {
+    return _items.containsKey(productId);
+  }
+
+  int getQuantity(String productId) {
+    return _items[productId]?.quantity ?? 0;
   }
 }

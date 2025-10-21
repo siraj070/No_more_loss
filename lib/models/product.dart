@@ -25,69 +25,36 @@ class Product {
     required this.expiryDate,
   });
 
-  /// ✅ Convert Firestore Document → Product
+  // For backward compatibility
+  double get price => discountedPrice;
+
   factory Product.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return Product(
       id: doc.id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
-      category: data['category'] ?? 'Others',
+      category: data['category'] ?? '',
       originalPrice: (data['originalPrice'] ?? 0).toDouble(),
       discountedPrice: (data['discountedPrice'] ?? 0).toDouble(),
-      quantity: (data['quantity'] ?? 0).toInt(),
+      quantity: data['quantity'] ?? 1,
       imageUrl: data['imageUrl'] ?? '',
       ownerId: data['ownerId'] ?? '',
-      expiryDate: data['expiryDate'] is Timestamp
-          ? (data['expiryDate'] as Timestamp).toDate()
-          : DateTime.tryParse(data['expiryDate'].toString()) ?? DateTime.now(),
+      expiryDate: (data['expiryDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
-  /// ✅ Convert Map → Product (used in Cart)
-  factory Product.fromMap(String id, Map<String, dynamic> map) {
-    return Product(
-      id: id,
-      name: map['name'] ?? '',
-      description: map['description'] ?? '',
-      category: map['category'] ?? 'Others',
-      originalPrice: (map['originalPrice'] ?? 0).toDouble(),
-      discountedPrice: (map['discountedPrice'] ?? 0).toDouble(),
-      quantity: (map['quantity'] ?? 0).toInt(),
-      imageUrl: map['imageUrl'] ?? '',
-      ownerId: map['ownerId'] ?? '',
-      expiryDate: map['expiryDate'] is String
-          ? DateTime.tryParse(map['expiryDate']) ?? DateTime.now()
-          : map['expiryDate'] is Timestamp
-              ? (map['expiryDate'] as Timestamp).toDate()
-              : DateTime.now(),
-    );
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'description': description,
+      'category': category,
+      'originalPrice': originalPrice,
+      'discountedPrice': discountedPrice,
+      'quantity': quantity,
+      'imageUrl': imageUrl,
+      'ownerId': ownerId,
+      'expiryDate': Timestamp.fromDate(expiryDate),
+    };
   }
-
-  /// ✅ Convert Product → Firestore Map
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'description': description,
-        'category': category,
-        'originalPrice': originalPrice,
-        'discountedPrice': discountedPrice,
-        'quantity': quantity,
-        'imageUrl': imageUrl,
-        'ownerId': ownerId,
-        'expiryDate': expiryDate.toIso8601String(),
-      };
-
-  /// ✅ Convert Product → Map (used in Cart)
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'name': name,
-        'description': description,
-        'category': category,
-        'originalPrice': originalPrice,
-        'discountedPrice': discountedPrice,
-        'quantity': quantity,
-        'imageUrl': imageUrl,
-        'ownerId': ownerId,
-        'expiryDate': expiryDate.toIso8601String(),
-      };
 }

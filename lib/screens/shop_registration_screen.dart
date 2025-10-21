@@ -1,14 +1,7 @@
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
-import 'package:file_picker/file_picker.dart';
 
 class ShopRegistrationScreen extends StatefulWidget {
   const ShopRegistrationScreen({super.key});
@@ -20,237 +13,173 @@ class ShopRegistrationScreen extends StatefulWidget {
 class _ShopRegistrationScreenState extends State<ShopRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final _shopNameController = TextEditingController();
-  final _gstController = TextEditingController();
   final _addressController = TextEditingController();
-  final _cityController = TextEditingController();
-  final _pincodeController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _gstController = TextEditingController();
+  bool _isLoading = false;
 
-  File? _pickedImage;
-  Uint8List? _imageBytes;
-  String? _imageName;
-  bool _isSubmitting = false;
-  bool _isGettingLocation = false;
+  @override
+  void initState() {
+    super.initState();
+    _loadShopData();
+  }
 
-  Future<void> _pickImage() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: false,
-    );
-    if (result != null && result.files.isNotEmpty) {
-      setState(() {
-        _imageName = result.files.first.name;
-        if (kIsWeb) {
-          _imageBytes = result.files.first.bytes;
-        } else {
-          _pickedImage = File(result.files.first.path!);
-        }
-      });
+  Future<void> _loadShopData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final doc = await FirebaseFirestore.instance
+        .collection('shops')
+        .doc(user.uid)
+        .get();
+    if (doc.exists) {
+      final data = doc.data()!;
+      _shopNameController.text = data['name'] ?? '';
+      _addressController.text = data['address'] ?? '';
+      _phoneController.text = data['phone'] ?? '';
+      _gstController.text = data['gst'] ?? '';
     }
   }
 
-  Future<void> _getLocation() async {
-    setState(() => _isGettingLocation = true);
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) throw Exception('Enable location services.');
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Location permission denied.');
-        }
-      }
-
-      Position position =
-          await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      List<Placemark> placemarks =
-          await placemarkFromCoordinates(position.latitude, position.longitude);
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks.first;
-        // Hide door/street info for privacy
-        _addressController.text =
-            '${place.subLocality ?? ''}, ${place.locality ?? ''}';
-        _cityController.text = place.locality ?? '';
-        _pincodeController.text = place.postalCode ?? '';
-      }
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('✅ Location detected!'),
-        backgroundColor: Color(0xFF10B981),
-      ));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-      );
-    } finally {
-      setState(() => _isGettingLocation = false);
-    }
-  }
-
-  Future<String?> _uploadImage() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser!;
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('shop_photos')
-          .child('${user.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg');
-
-      UploadTask uploadTask;
-      if (kIsWeb && _imageBytes != null) {
-        uploadTask = storageRef.putData(_imageBytes!);
-      } else if (_pickedImage != null) {
-        uploadTask = storageRef.putFile(_pickedImage!);
-      } else {
-        throw Exception('No image selected');
-      }
-
-      final snapshot = await uploadTask.whenComplete(() {});
-      return await snapshot.ref.getDownloadURL();
-    } catch (e) {
-      throw Exception('Image upload failed: $e');
-    }
-  }
-
-  Future<void> _submitRegistration() async {
+  Future<void> _saveShopInfo() async {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSubmitting = true);
+    setState(() => _isLoading = true);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
     try {
-      final user = FirebaseAuth.instance.currentUser!;
-      final photoUrl = await _uploadImage();
-
-      await FirebaseFirestore.instance.collection('pending_shops').doc(user.uid).set({
-        'userId': user.uid,
-        'email': user.email,
-        'shopName': _shopNameController.text.trim(),
-        'gstNumber': _gstController.text.trim(),
-        'shopAddress':
-            '${_addressController.text.trim()}, ${_cityController.text.trim()} - ${_pincodeController.text.trim()}',
-        'shopPhotoUrl': photoUrl,
-        'status': 'pending',
-        'createdAt': Timestamp.now(),
-      });
+      await FirebaseFirestore.instance
+          .collection('shops')
+          .doc(user.uid)
+          .set({
+        'name': _shopNameController.text.trim(),
+        'address': _addressController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'gst': _gstController.text.trim(),
+        'ownerId': user.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('🕒 Shop submitted for admin approval!'),
+        content: Text('Shop information saved!'),
         backgroundColor: Color(0xFF10B981),
       ));
-
       Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
+          SnackBar(content: Text('Error saving: $e')));
     } finally {
-      setState(() => _isSubmitting = false);
+      setState(() => _isLoading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _shopNameController.dispose();
+    _addressController.dispose();
+    _phoneController.dispose();
+    _gstController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: Text('Shop Registration', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text('Shop Registration',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         backgroundColor: const Color(0xFF10B981),
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
-          child: Column(
-            children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 180,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: _pickedImage != null
-                      ? Image.file(_pickedImage!, fit: BoxFit.cover)
-                      : (_imageBytes != null
-                          ? Image.memory(_imageBytes!, fit: BoxFit.cover)
-                          : const Center(child: Text('Tap to upload shop photo'))),
-                ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _shopNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Shop Name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.isEmpty ? 'Enter shop name' : null,
+              child: Row(children: [
+                const Icon(Icons.info_outline, color: Color(0xFF10B981)),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: Text(
+                        'Register or update your shop info to start selling',
+                        style: GoogleFonts.poppins(
+                            fontSize: 14, color: Color(0xFF065F46)))),
+              ]),
+            ),
+            const SizedBox(height: 24),
+            _buildField(_shopNameController, 'Shop Name', Icons.store_outlined,
+                validator: (v) => v!.isEmpty ? 'Required' : null),
+            const SizedBox(height: 16),
+            _buildField(_addressController, 'Shop Address',
+                Icons.location_on_outlined,
+                maxLines: 3, validator: (v) => v!.isEmpty ? 'Required' : null),
+            const SizedBox(height: 16),
+            _buildField(_phoneController, 'Contact Number', Icons.phone_outlined,
+                keyboard: TextInputType.phone,
+                validator: (v) {
+                  if (v!.isEmpty) return 'Required';
+                  if (v.length != 10) return 'Invalid';
+                  return null;
+                }),
+            const SizedBox(height: 16),
+            _buildField(_gstController, 'GST Number (Optional)',
+                Icons.receipt_long_outlined),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _saveShopInfo,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _gstController,
-                decoration: const InputDecoration(
-                  labelText: 'GST Number',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.isEmpty ? 'Enter GST number' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _addressController,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Shop Address (auto-filled via GPS)',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => v!.isEmpty ? 'Enter address' : null,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cityController,
-                      decoration: const InputDecoration(
-                        labelText: 'City',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) => v!.isEmpty ? 'Enter city' : null,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _pincodeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Pincode',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) => v!.isEmpty ? 'Enter pincode' : null,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _isGettingLocation ? null : _getLocation,
-                icon: _isGettingLocation
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.my_location, color: Color(0xFF10B981)),
-                label: const Text('Use GPS'),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitRegistration,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
-                  minimumSize: const Size(double.infinity, 50),
-                ),
-                child: _isSubmitting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Submit for Approval'),
-              ),
-            ],
-          ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : Text('Save Shop Info',
+                      style: GoogleFonts.poppins(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+            ),
+          ]),
         ),
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController ctrl, String label, IconData icon,
+      {TextInputType keyboard = TextInputType.text,
+      String? Function(String?)? validator,
+      int maxLines = 1}) {
+    return TextFormField(
+      controller: ctrl,
+      keyboardType: keyboard,
+      validator: validator,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF10B981)),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                const BorderSide(color: Color(0xFF10B981), width: 2)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFEF4444))),
       ),
     );
   }
