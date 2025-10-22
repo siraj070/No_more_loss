@@ -11,6 +11,10 @@ import 'cart_screen.dart';
 import 'my_orders_screen.dart';
 import 'settings/customer_settings.dart';
 
+// ✨ New screens (I’ll send these next)
+import 'wishlist_screen.dart';
+import 'search_filter_screen.dart';
+
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
 
@@ -20,7 +24,7 @@ class ProductListScreen extends StatefulWidget {
 
 class _ProductListScreenState extends State<ProductListScreen> {
   String _selectedCategory = 'All';
-  final List<String> _categories = [
+  final List<String> _categories = const [
     'All',
     'Dairy',
     'Snacks',
@@ -47,18 +51,31 @@ class _ProductListScreenState extends State<ProductListScreen> {
         backgroundColor: const Color(0xFF10B981),
         elevation: 0,
         actions: [
-          // 👤 Profile
+          // 🔍 Search
           IconButton(
-            icon: const Icon(Icons.person_outline),
+            icon: const Icon(Icons.search_rounded),
+            tooltip: 'Search',
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const CustomerSettingsScreen()),
+                MaterialPageRoute(builder: (_) => const SearchFilterScreen()),
               );
             },
           ),
 
-          // 🛒 Cart icon
+          // ❤️ Wishlist
+          IconButton(
+            icon: const Icon(Icons.favorite_border_rounded),
+            tooltip: 'Wishlist',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const WishlistScreen()),
+              );
+            },
+          ),
+
+          // 🛒 Cart (kept)
           Stack(
             children: [
               IconButton(
@@ -98,7 +115,18 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ],
           ),
 
-          // ⋮ Menu
+          // 👤 Profile (kept)
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CustomerSettingsScreen()),
+              );
+            },
+          ),
+
+          // ⋮ Menu (kept)
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
@@ -111,8 +139,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 FirebaseAuth.instance.signOut();
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
+            itemBuilder: (context) => const [
+              PopupMenuItem(
                 value: 'orders',
                 child: Row(
                   children: [
@@ -122,7 +150,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [
@@ -139,13 +167,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
       body: Column(
         children: [
-          // 🏷 Category Chips
-          Container(
+          // 🏷 Category Chips (kept)
+          SizedBox(
             height: 60,
-            padding: const EdgeInsets.symmetric(vertical: 8),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemCount: _categories.length,
               itemBuilder: (context, index) {
                 final category = _categories[index];
@@ -155,9 +182,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   child: ChoiceChip(
                     label: Text(category),
                     selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() => _selectedCategory = category);
-                    },
+                    onSelected: (_) => setState(() => _selectedCategory = category),
                     labelStyle: GoogleFonts.poppins(
                       color: isSelected ? Colors.white : Colors.black87,
                       fontWeight: FontWeight.w600,
@@ -171,7 +196,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
           ),
 
-          // 🧃 Product Grid
+          // 🧃 Product Grid (kept; source streams upgraded in ProductService)
           Expanded(
             child: StreamBuilder<List<Product>>(
               stream: _selectedCategory == 'All'
@@ -207,14 +232,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   padding: const EdgeInsets.all(12),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.70, // tighter & balanced
+                    childAspectRatio: 0.70,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                   ),
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
-                    return _buildProductCard(product, cartService);
+                    return _buildProductCard(
+                      context: context,
+                      product: product,
+                      cartService: cartService,
+                      productService: productService,
+                    );
                   },
                 );
               },
@@ -225,221 +255,238 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
-  // 🧱 Modern Product Card
- Widget _buildProductCard(Product product, CartService cartService) {
-  // ✅ Safely parse expiry date from Firestore timestamp or DateTime
-  final DateTime expiry = product.expiryDate.toLocal();
-  final bool isExpired = expiry.isBefore(DateTime.now());
-  final int daysLeft = expiry.difference(DateTime.now()).inDays;
-  final discountPercent = ((product.originalPrice - product.discountedPrice) /
-          product.originalPrice *
-          100)
-      .toStringAsFixed(0);
+  // 🧱 Product Card (unchanged look; added ❤️ toggle)
+  Widget _buildProductCard({
+    required BuildContext context,
+    required Product product,
+    required CartService cartService,
+    required ProductService productService,
+  }) {
+    final DateTime expiry = product.expiryDate.toLocal();
+    final bool isExpired = expiry.isBefore(DateTime.now());
+    final int daysLeft = expiry.difference(DateTime.now()).inDays;
+    final discountPercent = ((product.originalPrice - product.discountedPrice) /
+            product.originalPrice *
+            100)
+        .toStringAsFixed(0);
 
-  return GestureDetector(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(product: product),
-        ),
-      );
-    },
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 🖼 Image + Discount
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(14)),
-                child: product.imageUrl.isNotEmpty
-                    ? Image.network(
-                        product.imageUrl,
-                        height: 95,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
-                      )
-                    : _buildPlaceholderImage(),
+    return StreamBuilder<bool>(
+      stream: productService.isInWishlistStream(product.id),
+      builder: (context, snap) {
+        final inWishlist = snap.data ?? false;
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProductDetailScreen(product: product),
               ),
-              if (!isExpired)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '$discountPercent% OFF',
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
+            );
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🖼 Image + Discount + ❤️
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(14),
                       ),
+                      child: product.imageUrl.isNotEmpty
+                          ? Image.network(
+                              product.imageUrl,
+                              height: 95,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _buildPlaceholderImage(),
+                            )
+                          : _buildPlaceholderImage(),
+                    ),
+                    if (!isExpired)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '$discountPercent% OFF',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    // ❤️ Wishlist toggle
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: GestureDetector(
+                        onTap: () => productService.toggleWishlist(product.id),
+                        child: Icon(
+                          inWishlist
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: inWishlist
+                              ? Colors.redAccent
+                              : Colors.grey.shade400,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // 🧾 Product details + Add to Cart (kept)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          product.name,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          product.category,
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              '₹${product.discountedPrice.toStringAsFixed(0)}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFF10B981),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '₹${product.originalPrice.toStringAsFixed(0)}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.grey,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isExpired
+                                ? const Color(0xFFFFE4E6)
+                                : daysLeft <= 3
+                                    ? const Color(0xFFFFF3E0)
+                                    : const Color(0xFFEFFDF5),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            isExpired
+                                ? 'Expired'
+                                : daysLeft <= 3
+                                    ? '$daysLeft days left'
+                                    : 'Exp: ${expiry.toLocal().toString().split(' ')[0]}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              color: isExpired
+                                  ? const Color(0xFFEF4444)
+                                  : daysLeft <= 3
+                                      ? const Color(0xFFF59E0B)
+                                      : const Color(0xFF10B981),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 32,
+                          child: ElevatedButton(
+                            onPressed: (isExpired || product.quantity <= 0)
+                                ? null
+                                : () {
+                                    // extra guard
+                                    if (isExpired) return;
+                                    cartService.addToCart(product);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content:
+                                            Text('${product.name} added to cart!'),
+                                        backgroundColor: const Color(0xFF10B981),
+                                        behavior: SnackBarBehavior.floating,
+                                        duration: const Duration(seconds: 1),
+                                      ),
+                                    );
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isExpired
+                                  ? Colors.grey.shade300
+                                  : const Color(0xFF10B981),
+                              foregroundColor: isExpired
+                                  ? Colors.grey.shade600
+                                  : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: EdgeInsets.zero,
+                            ),
+                            child: Text(
+                              isExpired
+                                  ? 'Unavailable'
+                                  : product.quantity <= 0
+                                      ? 'Out of Stock'
+                                      : 'Add to Cart',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-            ],
-          ),
-
-          // 🧾 Product details
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    product.name,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    product.category,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        '₹${product.discountedPrice.toStringAsFixed(0)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF10B981),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '₹${product.originalPrice.toStringAsFixed(0)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: Colors.grey,
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // ⏰ Expiry Label
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isExpired
-                          ? const Color(0xFFFFE4E6)
-                          : daysLeft <= 3
-                              ? const Color(0xFFFFF3E0)
-                              : const Color(0xFFEFFDF5),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      isExpired
-                          ? 'Expired'
-                          : daysLeft <= 3
-                              ? '$daysLeft days left'
-                              : 'Exp: ${expiry.toLocal().toString().split(' ')[0]}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        color: isExpired
-                            ? const Color(0xFFEF4444)
-                            : daysLeft <= 3
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFF10B981),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-
-                  // 🛒 Add to Cart (disabled for expired)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 32,
-                    child: ElevatedButton(
-                      onPressed: (isExpired || product.quantity <= 0)
-                          ? null
-                          : () {
-                              // 🔒 Extra check inside
-                              if (isExpired) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'This product is expired and cannot be added to cart.'),
-                                    backgroundColor: Color(0xFFEF4444),
-                                  ),
-                                );
-                                return;
-                              }
-                              cartService.addToCart(product);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content:
-                                      Text('${product.name} added to cart!'),
-                                  backgroundColor: const Color(0xFF10B981),
-                                  behavior: SnackBarBehavior.floating,
-                                  duration: const Duration(seconds: 1),
-                                ),
-                              );
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isExpired
-                            ? Colors.grey.shade300
-                            : const Color(0xFF10B981),
-                        foregroundColor:
-                            isExpired ? Colors.grey.shade600 : Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: Text(
-                        isExpired
-                            ? 'Unavailable'
-                            : product.quantity <= 0
-                                ? 'Out of Stock'
-                                : 'Add to Cart',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
           ),
-        ],
-      ),
-    ),
-  );
-}
-
+        );
+      },
+    );
+  }
 
   Widget _buildPlaceholderImage() {
     return Container(
