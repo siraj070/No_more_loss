@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ added
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -10,20 +11,27 @@ class AuthService extends ChangeNotifier {
   
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Sign in with email and password
+  // ✅ Sign in with email and password
   Future<User?> signInWithEmailPassword(String email, String password) async {
     try {
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      // ✅ Save UID locally for persistence
+      if (credential.user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('shopOwnerUID', credential.user!.uid);
+      }
+
       return credential.user;
     } catch (e) {
       rethrow;
     }
   }
 
-  // Register with email, password, and role
+  // ✅ Register with email, password, and role
   Future<User?> registerWithEmailPassword(
     String email,
     String password,
@@ -34,25 +42,34 @@ class AuthService extends ChangeNotifier {
         email: email,
         password: password,
       );
+
       if (credential.user != null) {
         await _firestore.collection('users').doc(credential.user!.uid).set({
           'email': email,
           'role': role,
           'createdAt': FieldValue.serverTimestamp(),
         });
+
+        // ✅ Save UID locally for persistence (for new shop owners)
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('shopOwnerUID', credential.user!.uid);
       }
+
       return credential.user;
     } catch (e) {
       rethrow;
     }
   }
 
-  // Sign out
+  // ✅ Sign out
   Future<void> signOut() async {
     await _auth.signOut();
+    // Optional: You can clear stored UID here if you want
+    // final prefs = await SharedPreferences.getInstance();
+    // await prefs.remove('shopOwnerUID');
   }
 
-  // Fetch user role
+  // ✅ Fetch user role
   Future<String> getUserRole(String uid) async {
     try {
       final doc = await _firestore.collection('users').doc(uid).get();

@@ -25,11 +25,28 @@ class Product {
     required this.expiryDate,
   });
 
-  // For backward compatibility
+  // Backward compatibility
   double get price => discountedPrice;
 
+  /// ✅ Handles both Timestamp and String expiryDate types safely
   factory Product.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    DateTime expiry;
+
+    final rawDate = data['expiryDate'];
+
+    if (rawDate is Timestamp) {
+      expiry = rawDate.toDate();
+    } else if (rawDate is String) {
+      try {
+        expiry = DateTime.parse(rawDate);
+      } catch (_) {
+        expiry = DateTime.now();
+      }
+    } else {
+      expiry = DateTime.now();
+    }
+
     return Product(
       id: doc.id,
       name: data['name'] ?? '',
@@ -40,10 +57,11 @@ class Product {
       quantity: data['quantity'] ?? 1,
       imageUrl: data['imageUrl'] ?? '',
       ownerId: data['ownerId'] ?? '',
-      expiryDate: (data['expiryDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      expiryDate: expiry,
     );
   }
 
+  /// ✅ Always saves as a Firestore Timestamp going forward
   Map<String, dynamic> toMap() {
     return {
       'name': name,
