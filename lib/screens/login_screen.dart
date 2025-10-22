@@ -14,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _isLogin = true;
   bool _isLoading = false;
   String _selectedRole = 'Customer';
@@ -64,6 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       debugPrint('⚠️ FirebaseAuth error: ${e.code} — ${e.message}');
       String message = 'Authentication failed';
+
       switch (e.code) {
         case 'user-not-found':
           message = 'No user found with this email.';
@@ -183,8 +185,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
                             labelText: 'Email',
-                            prefixIcon: const Icon(Icons.email_outlined,
-                                color: Color(0xFF10B981)),
+                            prefixIcon: const Icon(
+                              Icons.email_outlined,
+                              color: Color(0xFF10B981),
+                            ),
                             filled: true,
                             fillColor: const Color(0xFFF9FAFB),
                             border: OutlineInputBorder(
@@ -210,8 +214,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           obscureText: true,
                           decoration: InputDecoration(
                             labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline,
-                                color: Color(0xFF10B981)),
+                            prefixIcon: const Icon(
+                              Icons.lock_outline,
+                              color: Color(0xFF10B981),
+                            ),
                             filled: true,
                             fillColor: const Color(0xFFF9FAFB),
                             border: OutlineInputBorder(
@@ -237,8 +243,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             value: _selectedRole,
                             decoration: InputDecoration(
                               labelText: 'Role',
-                              prefixIcon: const Icon(Icons.person_outline,
-                                  color: Color(0xFF10B981)),
+                              prefixIcon: const Icon(
+                                Icons.person_outline,
+                                color: Color(0xFF10B981),
+                              ),
                               filled: true,
                               fillColor: const Color(0xFFF9FAFB),
                               border: OutlineInputBorder(
@@ -247,10 +255,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             items: ['Customer', 'Shop Owner', 'Admin']
-                                .map((role) => DropdownMenuItem(
-                                      value: role,
-                                      child: Text(role),
-                                    ))
+                                .map(
+                                  (role) => DropdownMenuItem(
+                                    value: role,
+                                    child: Text(role),
+                                  ),
+                                )
                                 .toList(),
                             onChanged: (value) =>
                                 setState(() => _selectedRole = value!),

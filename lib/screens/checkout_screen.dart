@@ -5,12 +5,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+
+// ✅ Correct, safe imports for both platforms
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:razorpay_web/razorpay_web.dart' as RazorpayWeb;
 
 import '../services/cart_service.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  final Map<String, String>? address; // coming from AddressScreen
+  final Map<String, String>? address;
 
   const CheckoutScreen({super.key, this.address});
 
@@ -19,21 +22,29 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  late Razorpay _razorpay;
+  late dynamic _razorpay;
   bool _isPlacingOrder = false;
 
   @override
   void initState() {
     super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
+
+    if (kIsWeb) {
+      _razorpay = RazorpayWeb.Razorpay();
+      debugPrint("✅ Razorpay Web SDK initialized");
+    } else {
+      _razorpay = Razorpay();
+      _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
+      _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
+      _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
+    }
   }
 
   @override
   void dispose() {
-    _razorpay.clear();
+    if (!kIsWeb) {
+      _razorpay.clear();
+    }
     super.dispose();
   }
 
@@ -59,7 +70,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _payNow(double grandTotal) {
     if (kIsWeb) {
-      // Web checkout logic if you have razorpay_web implemented
+      final email = FirebaseAuth.instance.currentUser?.email ?? '';
+      final phone = widget.address?['phone'] ?? '9999999999';
+
+      var options = {
+        'key': 'rzp_test_RVn4gcgHMRXP8s',
+        'amount': (grandTotal * 100).toInt(),
+        'name': 'No More Loss',
+        'description': 'Order Payment',
+        'prefill': {'contact': phone, 'email': email},
+        'theme': {'color': '#10B981'},
+      };
+
+      _razorpay.on('payment.success', (response) {
+        _saveOrder(paymentId: response['razorpay_payment_id']);
+      });
+
+      _razorpay.on('payment.error', (response) {
+        final msg = response is Map && response['error'] is Map
+            ? (response['error']['description'] ?? 'Payment Failed')
+            : 'Payment Failed';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('❌ $msg')));
+      });
+
+      try {
+        _razorpay.open(options);
+      } catch (e) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Payment error: $e')));
+      }
     } else {
       final options = {
         'key': 'rzp_test_RVn4gcgHMRXP8s',
@@ -83,18 +123,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _onPaymentSuccess(PaymentSuccessResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('✅ Payment Successful: ${response.paymentId}')),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('✅ Payment Successful: ${response.paymentId}')));
     _saveOrder(paymentId: response.paymentId ?? '');
   }
 
   void _onPaymentError(PaymentFailureResponse response) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(
-              '❌ Payment Failed: ${response.code} | ${response.message ?? 'Unknown'}')),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('❌ Payment Failed: ${response.code} | ${response.message ?? 'Unknown'}')));
   }
 
   void _onExternalWallet(ExternalWalletResponse response) {
@@ -109,7 +145,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final cartService = Provider.of<CartService>(context, listen: false);
 
       final subtotal = cartService.totalAmount;
-      final tax = double.parse((subtotal * 0.05).toStringAsFixed(2)); // 5%
+      final tax = double.parse((subtotal * 0.05).toStringAsFixed(2));
       const delivery = 30.0;
       final grandTotal =
           double.parse((subtotal + tax + delivery).toStringAsFixed(2));
@@ -148,7 +184,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       };
 
       await FirebaseFirestore.instance.collection('orders').add(data);
-
       cartService.clearCart();
 
       if (mounted) {
@@ -177,8 +212,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final addressLines = [
       if ((addr['door'] ?? '').isNotEmpty) addr['door'],
       if ((addr['street'] ?? '').isNotEmpty) addr['street'],
-      if (((addr['city'] ?? '').isNotEmpty) ||
-          ((addr['pincode'] ?? '').isNotEmpty))
+      if (((addr['city'] ?? '').isNotEmpty) || ((addr['pincode'] ?? '').isNotEmpty))
         '${addr['city'] ?? ''} - ${addr['pincode'] ?? ''}',
       if ((addr['phone'] ?? '').isNotEmpty) '📞 ${addr['phone']}',
     ];
@@ -186,15 +220,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title:
-            Text('Checkout', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text('Checkout',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         backgroundColor: const Color(0xFF10B981),
         elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          // Address Card
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -223,8 +256,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ]),
           ),
           const SizedBox(height: 16),
-
-          // Items + Summary
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -237,7 +268,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       offset: const Offset(0, 4))
                 ]),
             child: Column(children: [
-              // Items list
               ...cartService.itemsList.map((i) {
                 return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -253,7 +283,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             style: GoogleFonts.poppins(color: Colors.grey[600])),
                         const SizedBox(width: 10),
                         Text('₹${i.totalPrice.toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600)),
                       ],
                     ));
               }).toList(),
@@ -268,22 +299,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ]),
           ),
           const SizedBox(height: 16),
-
-          // Brand line
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
                 color: const Color(0xFF10B981).withOpacity(0.08),
                 borderRadius: BorderRadius.circular(12)),
             child: Text(
-                '“No More Loss” — we pack with care, we deliver with pace; '
-                'from your cart to your door, a smile on your face. ✨',
+                '“No More Loss” — we pack with care, we deliver with pace; from your cart to your door, a smile on your face. ✨',
                 style: GoogleFonts.poppins(
                     fontSize: 13, color: const Color(0xFF065F46))),
           ),
           const SizedBox(height: 16),
-
-          // Pay button
           ElevatedButton(
               onPressed: _isPlacingOrder ? null : () => _payNow(grandTotal),
               style: ElevatedButton.styleFrom(
@@ -313,8 +339,8 @@ class _OrderSuccessScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title:
-            Text('Order Placed', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text('Order Placed',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         backgroundColor: const Color(0xFF10B981),
         elevation: 0,
       ),
@@ -331,8 +357,8 @@ class _OrderSuccessScreen extends StatelessWidget {
         const SizedBox(height: 24),
         ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pushReplacement(MaterialPageRoute(
-                  builder: (_) => const MyOrdersScreen()));
+              Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const MyOrdersScreen()));
             },
             style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
@@ -343,8 +369,6 @@ class _OrderSuccessScreen extends StatelessWidget {
     );
   }
 }
-
-// ---------------- MY ORDERS SCREEN ----------------
 
 class MyOrdersScreen extends StatelessWidget {
   const MyOrdersScreen({super.key});
@@ -381,8 +405,8 @@ class MyOrdersScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title:
-            Text('My Orders', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text('My Orders',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
         backgroundColor: const Color(0xFF10B981),
         elevation: 0,
       ),
@@ -400,7 +424,8 @@ class MyOrdersScreen extends StatelessWidget {
                 }
                 if (!snap.hasData || snap.data!.docs.isEmpty) {
                   return Center(
-                      child: Text('No orders yet', style: GoogleFonts.poppins()));
+                      child:
+                          Text('No orders yet', style: GoogleFonts.poppins()));
                 }
                 return ListView.separated(
                   padding: const EdgeInsets.all(16),
@@ -410,69 +435,89 @@ class MyOrdersScreen extends StatelessWidget {
                     final doc = snap.data!.docs[i];
                     final d = doc.data() as Map<String, dynamic>;
                     final status = d['status'] ?? 'ordered';
-                    final pricing = (d['pricing'] ?? {}) as Map<String, dynamic>;
+                    final pricing =
+                        (d['pricing'] ?? {}) as Map<String, dynamic>;
                     final items = (d['items'] ?? []) as List;
                     final addressString = (d['addressString'] ?? '') as String;
 
                     return Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                          color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3))
-                      ]),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                        // header
-                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          Text('Order',
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16)),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                                color: _statusColor(status).withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(20)),
-                            child: Text(status.toUpperCase(),
-                                style: GoogleFonts.poppins(
-                                    fontSize: 11, fontWeight: FontWeight.w700, color: _statusColor(status))),
-                          )
-                        ]),
-                        const SizedBox(height: 8),
-
-                        // items summary (first item)
-                        if (items.isNotEmpty)
-                          Text(
-                              '${items[0]['name']}${items.length > 1 ? ' + ${items.length - 1} more' : ''}',
-                              style: GoogleFonts.poppins(fontSize: 13, color: Colors.black87),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 8),
-
-                        // address
-                        if (addressString.isNotEmpty)
-                          Text(addressString,
-                              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700])),
-
-                        const SizedBox(height: 12),
-                        // price + steps
-                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          Text('₹${(pricing['grandTotal'] ?? 0).toStringAsFixed(2)}',
-                              style: GoogleFonts.poppins(fontWeight: FontWeight.w700, fontSize: 16)),
-                          Row(
-                              children: List.generate(3, (idx) {
-                            final active = idx <= _statusIndex(status);
-                            return Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                  color: active ? _statusColor(status) : Colors.grey.shade300,
-                                  shape: BoxShape.circle),
-                            );
-                          }))
-                        ])
-                      ]),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3))
+                          ]),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('Order',
+                                      style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16)),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                        color: _statusColor(status)
+                                            .withOpacity(0.12),
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                    child: Text(status.toUpperCase(),
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: _statusColor(status))),
+                                  )
+                                ]),
+                            const SizedBox(height: 8),
+                            if (items.isNotEmpty)
+                              Text(
+                                  '${items[0]['name']}${items.length > 1 ? ' + ${items.length - 1} more' : ''}',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 13, color: Colors.black87),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 8),
+                            if (addressString.isNotEmpty)
+                              Text(addressString,
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 12, color: Colors.grey[700])),
+                            const SizedBox(height: 12),
+                            Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                      '₹${(pricing['grandTotal'] ?? 0).toStringAsFixed(2)}',
+                                      style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16)),
+                                  Row(
+                                      children: List.generate(3, (idx) {
+                                    final active =
+                                        idx <= _statusIndex(status);
+                                    return Container(
+                                      margin: const EdgeInsets.symmetric(
+                                          horizontal: 4),
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                          color: active
+                                              ? _statusColor(status)
+                                              : Colors.grey.shade300,
+                                          shape: BoxShape.circle),
+                                    );
+                                  }))
+                                ])
+                          ]),
                     );
                   },
                 );

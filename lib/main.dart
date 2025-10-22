@@ -5,10 +5,17 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// ✅ Import new theme files
+import 'theme/app_colors.dart';
+import 'theme/app_text_styles.dart';
+import 'theme/app_decorations.dart';
+
+// Services
 import 'services/auth_service.dart';
 import 'services/cart_service.dart';
 import 'services/product_service.dart';
 
+// Screens
 import 'screens/login_screen.dart';
 import 'screens/product_list_screen.dart';
 import 'screens/shop_owner_dashboard.dart';
@@ -57,9 +64,26 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'No More Loss',
         debugShowCheckedModeBanner: false,
+
+        // 🎨 THEME SETUP (matches your new Zepto-style widgets)
         theme: ThemeData(
-          primarySwatch: Colors.green,
+          useMaterial3: true,
+          scaffoldBackgroundColor: AppColors.bg,
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            iconTheme: IconThemeData(color: AppColors.text),
+            titleTextStyle: TextStyle(
+              color: AppColors.text,
+              fontWeight: FontWeight.w600,
+              fontSize: 20,
+            ),
+          ),
           textTheme: GoogleFonts.poppinsTextTheme(),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: AppColors.primary,
+            background: AppColors.bg,
+          ),
         ),
         home: const AuthGate(),
       ),
@@ -103,7 +127,7 @@ class AuthGate extends StatelessWidget {
         if (authSnap.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(color: Colors.green),
+              child: CircularProgressIndicator(color: AppColors.primary),
             ),
           );
         }
@@ -129,7 +153,7 @@ class AuthGate extends StatelessWidget {
             if (roleSnap.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 body: Center(
-                  child: CircularProgressIndicator(color: Colors.green),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
               );
             }

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../services/product_service.dart';
 import '../services/cart_service.dart';
 import '../models/product.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 import 'my_orders_screen.dart';
+import 'settings/customer_settings.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -38,11 +40,25 @@ class _ProductListScreenState extends State<ProductListScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
-        title: Text('No More Loss',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text(
+          'No More Loss',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
         backgroundColor: const Color(0xFF10B981),
         elevation: 0,
         actions: [
+          // 👤 Profile
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CustomerSettingsScreen()),
+              );
+            },
+          ),
+
+          // 🛒 Cart icon
           Stack(
             children: [
               IconButton(
@@ -81,6 +97,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
             ],
           ),
+
+          // ⋮ Menu
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
@@ -118,9 +136,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
           ),
         ],
       ),
+
       body: Column(
         children: [
-          // Category Chips
+          // 🏷 Category Chips
           Container(
             height: 60,
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -137,9 +156,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     label: Text(category),
                     selected: isSelected,
                     onSelected: (selected) {
-                      setState(() {
-                        _selectedCategory = category;
-                      });
+                      setState(() => _selectedCategory = category);
                     },
                     labelStyle: GoogleFonts.poppins(
                       color: isSelected ? Colors.white : Colors.black87,
@@ -154,7 +171,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
           ),
 
-          // Products Grid
+          // 🧃 Product Grid
           Expanded(
             child: StreamBuilder<List<Product>>(
               stream: _selectedCategory == 'All'
@@ -187,13 +204,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
                 final products = snapshot.data!;
                 return GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  padding: const EdgeInsets.all(12),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.70, // tighter & balanced
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
                   ),
                   itemCount: products.length,
                   itemBuilder: (context, index) {
@@ -209,192 +225,230 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
-  Widget _buildProductCard(Product product, CartService cartService) {
-    final daysLeft = product.expiryDate.difference(DateTime.now()).inDays;
-    final discountPercent = ((product.originalPrice -
-                product.discountedPrice) /
-            product.originalPrice *
-            100)
-        .toStringAsFixed(0);
+  // 🧱 Modern Product Card
+ Widget _buildProductCard(Product product, CartService cartService) {
+  // ✅ Safely parse expiry date from Firestore timestamp or DateTime
+  final DateTime expiry = product.expiryDate.toLocal();
+  final bool isExpired = expiry.isBefore(DateTime.now());
+  final int daysLeft = expiry.difference(DateTime.now()).inDays;
+  final discountPercent = ((product.originalPrice - product.discountedPrice) /
+          product.originalPrice *
+          100)
+      .toStringAsFixed(0);
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => ProductDetailScreen(product: product)),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+  return GestureDetector(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProductDetailScreen(product: product),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image & Discount
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: product.imageUrl.isNotEmpty
-                      ? Image.network(
-                          product.imageUrl,
-                          height: 120,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
-                        )
-                      : _buildPlaceholderImage(),
-                ),
+      );
+    },
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 🖼 Image + Discount
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(14)),
+                child: product.imageUrl.isNotEmpty
+                    ? Image.network(
+                        product.imageUrl,
+                        height: 95,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildPlaceholderImage(),
+                      )
+                    : _buildPlaceholderImage(),
+              ),
+              if (!isExpired)
                 Positioned(
-                  top: 8,
-                  right: 8,
+                  top: 6,
+                  right: 6,
                   child: Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0xFF10B981),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '$discountPercent% OFF',
                       style: GoogleFonts.poppins(
                         color: Colors.white,
                         fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+            ],
+          ),
 
-            // Details
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      product.name,
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+          // 🧾 Product details
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    product.name,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
-                    Text(
-                      product.category,
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
-                      ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    product.category,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          '₹${product.discountedPrice.toStringAsFixed(0)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF10B981),
-                          ),
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        '₹${product.discountedPrice.toStringAsFixed(0)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF10B981),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '₹${product.originalPrice.toStringAsFixed(0)}',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey,
-                            decoration: TextDecoration.lineThrough,
-                          ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '₹${product.originalPrice.toStringAsFixed(0)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey,
+                          decoration: TextDecoration.lineThrough,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+
+                  // ⏰ Expiry Label
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isExpired
+                          ? const Color(0xFFFFE4E6)
+                          : daysLeft <= 3
+                              ? const Color(0xFFFFF3E0)
+                              : const Color(0xFFEFFDF5),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: daysLeft <= 3
-                            ? const Color(0xFFEF4444).withOpacity(0.1)
-                            : const Color(0xFFF59E0B).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                    child: Text(
+                      isExpired
+                          ? 'Expired'
+                          : daysLeft <= 3
+                              ? '$daysLeft days left'
+                              : 'Exp: ${expiry.toLocal().toString().split(' ')[0]}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 10,
+                        color: isExpired
+                            ? const Color(0xFFEF4444)
+                            : daysLeft <= 3
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFF10B981),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+
+                  // 🛒 Add to Cart (disabled for expired)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 32,
+                    child: ElevatedButton(
+                      onPressed: (isExpired || product.quantity <= 0)
+                          ? null
+                          : () {
+                              // 🔒 Extra check inside
+                              if (isExpired) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'This product is expired and cannot be added to cart.'),
+                                    backgroundColor: Color(0xFFEF4444),
+                                  ),
+                                );
+                                return;
+                              }
+                              cartService.addToCart(product);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content:
+                                      Text('${product.name} added to cart!'),
+                                  backgroundColor: const Color(0xFF10B981),
+                                  behavior: SnackBarBehavior.floating,
+                                  duration: const Duration(seconds: 1),
+                                ),
+                              );
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isExpired
+                            ? Colors.grey.shade300
+                            : const Color(0xFF10B981),
+                        foregroundColor:
+                            isExpired ? Colors.grey.shade600 : Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        padding: EdgeInsets.zero,
                       ),
                       child: Text(
-                        daysLeft <= 3
-                            ? '$daysLeft days left'
-                            : 'Exp: ${product.expiryDate.toLocal().toString().split(' ')[0]}',
+                        isExpired
+                            ? 'Unavailable'
+                            : product.quantity <= 0
+                                ? 'Out of Stock'
+                                : 'Add to Cart',
                         style: GoogleFonts.poppins(
-                          fontSize: 10,
-                          color: daysLeft <= 3
-                              ? const Color(0xFFEF4444)
-                              : const Color(0xFFF59E0B),
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          cartService.addToCart(product);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${product.name} added to cart!'),
-                              backgroundColor: const Color(0xFF10B981),
-                              behavior: SnackBarBehavior.floating,
-                              duration: const Duration(seconds: 1),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          'Add to Cart',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
 
   Widget _buildPlaceholderImage() {
     return Container(
-      height: 120,
+      height: 95,
       width: double.infinity,
       color: const Color(0xFF10B981).withOpacity(0.1),
       child: const Icon(
         Icons.local_grocery_store_outlined,
-        size: 50,
+        size: 40,
         color: Color(0xFF10B981),
       ),
     );
