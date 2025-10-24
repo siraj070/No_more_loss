@@ -7,7 +7,6 @@ class ProductService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// ---------- Helpers ----------
   DateTime get _now => DateTime.now();
 
   double _discountPct(Product p) {
@@ -17,13 +16,9 @@ class ProductService extends ChangeNotifier {
 
   /// ---------- Public Catalog Streams ----------
 
-  /// Get all products:
-  /// - Shop Owner: own products
-  /// - Customer/Guest: all non-expired
   Stream<List<Product>> getAllProducts() {
     final currentUser = _auth.currentUser;
 
-    // If not logged in, still show non-expired products to avoid "vanish"
     if (currentUser == null) {
       final query = _firestore
           .collection('products')
@@ -53,7 +48,6 @@ class ProductService extends ChangeNotifier {
     });
   }
 
-  /// Get products by owner
   Stream<List<Product>> getProductsByOwner(String ownerId) {
     return _firestore
         .collection('products')
@@ -63,30 +57,36 @@ class ProductService extends ChangeNotifier {
         .map((s) => s.docs.map(Product.fromFirestore).toList());
   }
 
-  /// Get products by category (stable: works for guest OR logged-in)
+  /// ✅ FIXED: Get products by category with safe fallback for missing Firestore index
   Stream<List<Product>> getProductsByCategory(String category) {
     final currentUser = _auth.currentUser;
 
-    // Guests/customers: show non-expired category products (prevents 1s vanish)
+    // Guests/customers
     if (currentUser == null) {
       final q = _firestore
           .collection('products')
           .where('category', isEqualTo: category)
           .where('expiryDate', isGreaterThan: Timestamp.fromDate(_now))
           .orderBy('expiryDate');
-      return q.snapshots().map(
-          (s) => s.docs.map((doc) => Product.fromFirestore(doc)).toList());
+
+      return q.snapshots().handleError((error) {
+        if (error.toString().contains('requires an index')) {
+          debugPrint(
+              '⚠️ Firestore index missing for getProductsByCategory("$category").');
+          debugPrint(
+              '👉 Open the link shown in the console to create the composite index.');
+        }
+      }).map((s) => s.docs.map((doc) => Product.fromFirestore(doc)).toList());
     }
 
-    // Logged-in users: respect role
+    // Logged-in users
     final userId = currentUser.uid;
     final userDocRef = _firestore.collection('users').doc(userId);
 
     return userDocRef.snapshots().asyncExpand((userDoc) {
       final role = userDoc.data()?['role'] ?? 'Customer';
-      Query query = _firestore
-          .collection('products')
-          .where('category', isEqualTo: category);
+      Query query =
+          _firestore.collection('products').where('category', isEqualTo: category);
 
       if (role == 'Shop Owner') {
         query = query.where('ownerId', isEqualTo: userId);
@@ -95,45 +95,39 @@ class ProductService extends ChangeNotifier {
             isGreaterThan: Timestamp.fromDate(_now));
       }
 
-      return query.orderBy('expiryDate').snapshots().map(
-          (s) => s.docs.map((doc) => Product.fromFirestore(doc)).toList());
+      return query.orderBy('expiryDate').snapshots().handleError((error) {
+        if (error.toString().contains('requires an index')) {
+          debugPrint(
+              '⚠️ Firestore index missing for category "$category" + expiryDate.');
+          debugPrint(
+              '👉 Copy and open the link below in your browser to create the index.');
+        }
+      }).map((s) => s.docs.map((doc) => Product.fromFirestore(doc)).toList());
     });
   }
 
-  /// ---------- Search (real-time) ----------
-  ///
-  /// Firestore-friendly search by name prefix + (optional) category.
-  /// - Server filters: name prefix, category (if provided)
-  /// - Client filters: price range, discount %, expiringSoon
-  ///
-  /// NOTE: For best performance, ensure an index if combining where(category) + orderBy(name).
+  /// ---------- Search ----------
   Stream<List<Product>> searchProducts({
     required String queryText,
-    String? category, // 'All' or null to ignore
+    String? category,
     double? minPrice,
     double? maxPrice,
     double? minDiscountPercent,
-    bool expiringSoon = false, // next 3 days
+    bool expiringSoon = false,
     int serverLimit = 50,
   }) {
     final q = queryText.trim();
     Query base = _firestore.collection('products');
+    base = base.where('expiryDate', isGreaterThan: Timestamp.fromDate(_now));
 
-    // Only non-expired for shoppers
-    base = base.where('expiryDate',
-        isGreaterThan: Timestamp.fromDate(_now));
-
-    // Optional category
     if (category != null && category.isNotEmpty && category != 'All') {
       base = base.where('category', isEqualTo: category);
     }
 
-    // Name prefix search (orderBy required)
-    // This assumes you have a 'name' field set for products.
     if (q.isNotEmpty) {
       base = base.orderBy('name').startAt([q]).endAt(['$q\uf8ff']);
     } else {
-      base = base.orderBy('expiryDate'); // sensible default
+      base = base.orderBy('expiryDate');
     }
 
     base = base.limit(serverLimit);
@@ -141,7 +135,6 @@ class ProductService extends ChangeNotifier {
     return base.snapshots().map((snap) {
       var items = snap.docs.map(Product.fromFirestore).toList();
 
-      // Client-side filters for price/discount/expiringSoon
       if (minPrice != null) {
         items = items.where((p) => p.discountedPrice >= minPrice).toList();
       }
@@ -160,10 +153,6 @@ class ProductService extends ChangeNotifier {
     });
   }
 
-  /// ---------- Smart Suggestions ----------
-  ///
-  /// Same category, not expired, expiring within [withinDays] (default 5).
-  /// Excludes the current productId.
   Stream<List<Product>> getSimilarProducts({
     required String category,
     required String excludeProductId,
@@ -186,11 +175,10 @@ class ProductService extends ChangeNotifier {
     });
   }
 
-  /// ---------- Wishlist (Cloud Sync) ----------
+  /// ---------- Wishlist ----------
   CollectionReference<Map<String, dynamic>> _wishlistCol(String uid) =>
       _firestore.collection('users').doc(uid).collection('wishlist');
 
-  /// Toggle wishlist status for a product (add/remove)
   Future<void> toggleWishlist(String productId) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -207,33 +195,31 @@ class ProductService extends ChangeNotifier {
     }
   }
 
-  /// Is product in wishlist? (live)
   Stream<bool> isInWishlistStream(String productId) {
     final user = _auth.currentUser;
     if (user == null) return const Stream<bool>.empty();
     return _wishlistCol(user.uid).doc(productId).snapshots().map((d) => d.exists);
   }
 
-  /// Get wishlist products for current user (live)
   Stream<List<Product>> getWishlistProducts() {
     final user = _auth.currentUser;
     if (user == null) return const Stream.empty();
 
-    return _wishlistCol(user.uid).orderBy('addedAt', descending: true).snapshots().asyncMap(
-      (snap) async {
-        if (snap.docs.isEmpty) return <Product>[];
-        // Fetch each product doc; small lists are fine. For large sets, chunk by 10 and use whereIn.
-        final futures = snap.docs.map((d) async {
-          final pid = d.id; // document id == productId
-          final pDoc = await _firestore.collection('products').doc(pid).get();
-          if (!pDoc.exists) return null;
-          return Product.fromFirestore(pDoc);
-        }).toList();
+    return _wishlistCol(user.uid)
+        .orderBy('addedAt', descending: true)
+        .snapshots()
+        .asyncMap((snap) async {
+      if (snap.docs.isEmpty) return <Product>[];
+      final futures = snap.docs.map((d) async {
+        final pid = d.id;
+        final pDoc = await _firestore.collection('products').doc(pid).get();
+        if (!pDoc.exists) return null;
+        return Product.fromFirestore(pDoc);
+      }).toList();
 
-        final results = await Future.wait(futures);
-        return results.whereType<Product>().toList();
-      },
-    );
+      final results = await Future.wait(futures);
+      return results.whereType<Product>().toList();
+    });
   }
 
   /// ---------- CRUD ----------

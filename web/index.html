@@ -4,32 +4,60 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>mvc</title>
-  <link rel="manifest" href="manifest.json">
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-</head>
-<body>
   
-  <!-- Firebase SDK Scripts -->
+  <title>mvc</title>
+  
+  <!-- 🧠 Enable HTTPS + Geolocation -->
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <meta name="theme-color" content="#10B981">
+
+  <link rel="manifest" href="manifest.json">
+
+  <!-- ✅ Razorpay -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+  <!-- ✅ Google Maps JS (for geocoding & places) -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBECS1PMTMEfHt201QVexNNSp7h96ozJz4&libraries=places,geometry"></script>
+
+  <!-- ✅ Register Service Worker for HTTPS + PWA permissions -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('flutter_service_worker.js').then(
+          function(reg) {
+            console.log('✅ ServiceWorker registered:', reg);
+          },
+          function(err) {
+            console.warn('⚠️ ServiceWorker registration failed:', err);
+          }
+        );
+      });
+    }
+  </script>
+</head>
+
+<body>
+  <!-- ✅ Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
+  <!-- ✅ Initialize Firebase (with your original config) -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBCg2JMJQcWEKUJ3kBY1ok2PmjQeo-Cf28",
       authDomain: "shop-cust.firebaseapp.com",
       projectId: "shop-cust",
-      storageBucket: "shop-cust.firebasestorage.app",
+      storageBucket: "shop-cust.firebasestorage.app",  // 🔙 your original bucket restored
       messagingSenderId: "1003283641297",
       appId: "1:1003283641297:web:4b0c198595db271d27e6f0",
       measurementId: "G-TWMHE5KGG8"
     };
-
     firebase.initializeApp(firebaseConfig);
   </script>
 
-  <!-- Flutter app script -->
+  <!-- ✅ Flutter app main script -->
   <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>

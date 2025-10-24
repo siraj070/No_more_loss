@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart'; // ✅ Added for location permission init
 
 // ✅ Import new theme files
 import 'theme/app_colors.dart';
@@ -39,15 +40,43 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    // ✅ Ask for location permission once during startup (for web + mobile)
+    await _initializeLocationPermissions();
+
+    // ✅ Initialize Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     debugPrint("✅ Firebase initialized successfully");
   } catch (e) {
-    debugPrint("⚠️ Firebase initialization failed: $e");
+    debugPrint("⚠️ Initialization failed: $e");
   }
 
   runApp(const MyApp());
+}
+
+// ✅ Location permission helper
+Future<void> _initializeLocationPermissions() async {
+  try {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      debugPrint("⚠️ Location services are disabled");
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      debugPrint("🚫 Location permissions are permanently denied");
+    } else {
+      debugPrint("✅ Location permission ready");
+    }
+  } catch (e) {
+    debugPrint("⚠️ Location init error: $e");
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -65,7 +94,7 @@ class MyApp extends StatelessWidget {
         title: 'No More Loss',
         debugShowCheckedModeBanner: false,
 
-        // 🎨 THEME SETUP (matches your new Zepto-style widgets)
+        // 🎨 THEME SETUP (Zepto-style)
         theme: ThemeData(
           useMaterial3: true,
           scaffoldBackgroundColor: AppColors.bg,
@@ -176,3 +205,4 @@ class AuthGate extends StatelessWidget {
     );
   }
 }
+

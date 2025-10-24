@@ -10,8 +10,6 @@ import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 import 'my_orders_screen.dart';
 import 'settings/customer_settings.dart';
-
-// ✨ New screens (I’ll send these next)
 import 'wishlist_screen.dart';
 import 'search_filter_screen.dart';
 
@@ -22,7 +20,8 @@ class ProductListScreen extends StatefulWidget {
   State<ProductListScreen> createState() => _ProductListScreenState();
 }
 
-class _ProductListScreenState extends State<ProductListScreen> {
+class _ProductListScreenState extends State<ProductListScreen>
+    with SingleTickerProviderStateMixin {
   String _selectedCategory = 'All';
   final List<String> _categories = const [
     'All',
@@ -36,9 +35,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
     'Other'
   ];
 
+  late Stream<List<Product>> _productStream;
+
+  @override
+  void initState() {
+    super.initState();
+    final productService = Provider.of<ProductService>(context, listen: false);
+    _productStream = productService.getAllProducts();
+  }
+
+  void _updateCategory(String category) {
+    setState(() {
+      _selectedCategory = category;
+    });
+    final productService = Provider.of<ProductService>(context, listen: false);
+    _productStream = (category == 'All')
+        ? productService.getAllProducts()
+        : productService.getProductsByCategory(category);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final productService = Provider.of<ProductService>(context);
     final cartService = Provider.of<CartService>(context);
 
     return Scaffold(
@@ -51,7 +68,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
         backgroundColor: const Color(0xFF10B981),
         elevation: 0,
         actions: [
-          // 🔍 Search
           IconButton(
             icon: const Icon(Icons.search_rounded),
             tooltip: 'Search',
@@ -62,8 +78,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
               );
             },
           ),
-
-          // ❤️ Wishlist
           IconButton(
             icon: const Icon(Icons.favorite_border_rounded),
             tooltip: 'Wishlist',
@@ -74,8 +88,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
               );
             },
           ),
-
-          // 🛒 Cart (kept)
           Stack(
             children: [
               IconButton(
@@ -114,19 +126,16 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
             ],
           ),
-
-          // 👤 Profile (kept)
           IconButton(
             icon: const Icon(Icons.person_outline),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const CustomerSettingsScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const CustomerSettingsScreen()),
               );
             },
           ),
-
-          // ⋮ Menu (kept)
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
@@ -165,9 +174,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ],
       ),
 
+      // ================= BODY =================
       body: Column(
         children: [
-          // 🏷 Category Chips (kept)
           SizedBox(
             height: 60,
             child: ListView.builder(
@@ -182,7 +191,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   child: ChoiceChip(
                     label: Text(category),
                     selected: isSelected,
-                    onSelected: (_) => setState(() => _selectedCategory = category),
+                    onSelected: (_) => _updateCategory(category),
                     labelStyle: GoogleFonts.poppins(
                       color: isSelected ? Colors.white : Colors.black87,
                       fontWeight: FontWeight.w600,
@@ -196,17 +205,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
           ),
 
-          // 🧃 Product Grid (kept; source streams upgraded in ProductService)
+          // ✅ FIXED STREAMBUILDER
           Expanded(
             child: StreamBuilder<List<Product>>(
-              stream: _selectedCategory == 'All'
-                  ? productService.getAllProducts()
-                  : productService.getProductsByCategory(_selectedCategory),
+              stream: _productStream,
               builder: (context, snapshot) {
+                // ✅ Handle connection properly
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
+                if (snapshot.hasError) {
+                  debugPrint('Firestore error: ${snapshot.error}');
+                  return Center(
+                    child: Text(
+                      'Oops! Something went wrong fetching products.',
+                      style: GoogleFonts.poppins(color: Colors.red),
+                    ),
+                  );
+                }
+
+                // ✅ Handle empty category
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Center(
                     child: Column(
@@ -239,6 +258,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
+                    final productService =
+                        Provider.of<ProductService>(context, listen: false);
                     return _buildProductCard(
                       context: context,
                       product: product,
@@ -252,10 +273,55 @@ class _ProductListScreenState extends State<ProductListScreen> {
           ),
         ],
       ),
+
+      // 🛒 Floating Cart
+      floatingActionButton: Consumer<CartService>(
+        builder: (context, cartService, _) => Stack(
+          alignment: Alignment.topRight,
+          children: [
+            FloatingActionButton(
+              backgroundColor: const Color(0xFF10B981),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CartScreen()),
+                );
+              },
+              child:
+                  const Icon(Icons.shopping_cart_outlined, color: Colors.white),
+            ),
+            if (cartService.itemCount > 0)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEF4444),
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    '${cartService.itemCount}',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  // 🧱 Product Card (unchanged look; added ❤️ toggle)
   Widget _buildProductCard({
     required BuildContext context,
     required Product product,
@@ -265,10 +331,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
     final DateTime expiry = product.expiryDate.toLocal();
     final bool isExpired = expiry.isBefore(DateTime.now());
     final int daysLeft = expiry.difference(DateTime.now()).inDays;
-    final discountPercent = ((product.originalPrice - product.discountedPrice) /
-            product.originalPrice *
-            100)
-        .toStringAsFixed(0);
+    final discountPercent =
+        ((product.originalPrice - product.discountedPrice) /
+                product.originalPrice *
+                100)
+            .toStringAsFixed(0);
 
     return StreamBuilder<bool>(
       stream: productService.isInWishlistStream(product.id),
@@ -299,13 +366,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 🖼 Image + Discount + ❤️
                 Stack(
                   children: [
                     ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(14),
-                      ),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(14)),
                       child: product.imageUrl.isNotEmpty
                           ? Image.network(
                               product.imageUrl,
@@ -338,27 +403,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           ),
                         ),
                       ),
-                    // ❤️ Wishlist toggle
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: GestureDetector(
-                        onTap: () => productService.toggleWishlist(product.id),
-                        child: Icon(
-                          inWishlist
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: inWishlist
-                              ? Colors.redAccent
-                              : Colors.grey.shade400,
-                          size: 22,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
-
-                // 🧾 Product details + Add to Cart (kept)
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(10, 6, 10, 4),
@@ -431,50 +477,86 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             ),
                           ),
                         ),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 32,
-                          child: ElevatedButton(
-                            onPressed: (isExpired || product.quantity <= 0)
-                                ? null
-                                : () {
-                                    // extra guard
-                                    if (isExpired) return;
-                                    cartService.addToCart(product);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content:
-                                            Text('${product.name} added to cart!'),
-                                        backgroundColor: const Color(0xFF10B981),
-                                        behavior: SnackBarBehavior.floating,
-                                        duration: const Duration(seconds: 1),
-                                      ),
-                                    );
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isExpired
-                                  ? Colors.grey.shade300
-                                  : const Color(0xFF10B981),
-                              foregroundColor: isExpired
-                                  ? Colors.grey.shade600
-                                  : Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed:
+                                    (isExpired || product.quantity <= 0)
+                                        ? null
+                                        : () {
+                                            if (isExpired) return;
+                                            cartService.addToCart(product);
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                    '${product.name} added to cart!'),
+                                                backgroundColor:
+                                                    const Color(0xFF10B981),
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                duration:
+                                                    const Duration(seconds: 1),
+                                              ),
+                                            );
+                                          },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isExpired
+                                      ? Colors.grey.shade300
+                                      : const Color(0xFF10B981),
+                                  foregroundColor: isExpired
+                                      ? Colors.grey.shade600
+                                      : Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                ),
+                                child: Text(
+                                  isExpired
+                                      ? 'Unavailable'
+                                      : product.quantity <= 0
+                                          ? 'Out of Stock'
+                                          : 'Add to Cart',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                              padding: EdgeInsets.zero,
                             ),
-                            child: Text(
-                              isExpired
-                                  ? 'Unavailable'
-                                  : product.quantity <= 0
-                                      ? 'Out of Stock'
-                                      : 'Add to Cart',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                await productService.toggleWishlist(product.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(inWishlist
+                                        ? 'Removed from wishlist'
+                                        : 'Added to wishlist'),
+                                    backgroundColor:
+                                        const Color(0xFF10B981),
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                              child: AnimatedScale(
+                                duration: const Duration(milliseconds: 200),
+                                scale: inWishlist ? 1.2 : 1.0,
+                                child: Icon(
+                                  inWishlist
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: inWishlist
+                                      ? Colors.redAccent
+                                      : Colors.grey.shade500,
+                                  size: 24,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ),
                       ],
                     ),
