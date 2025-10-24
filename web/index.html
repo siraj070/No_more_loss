@@ -20,21 +20,9 @@
   <!-- ✅ Google Maps JS (for geocoding & places) -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBECS1PMTMEfHt201QVexNNSp7h96ozJz4&libraries=places,geometry"></script>
 
-  <!-- ✅ Register Service Worker for HTTPS + PWA permissions -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('flutter_service_worker.js').then(
-          function(reg) {
-            console.log('✅ ServiceWorker registered:', reg);
-          },
-          function(err) {
-            console.warn('⚠️ ServiceWorker registration failed:', err);
-          }
-        );
-      });
-    }
-  </script>
+  <!-- ✅ Updated Flutter service worker bootstrapping -->
+  <!-- ⚙️ Fix for "Manual service worker registration deprecated" -->
+  <script src="flutter.js" defer></script>
 </head>
 
 <body>

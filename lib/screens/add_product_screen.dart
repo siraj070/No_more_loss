@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ ADD THIS LINE
 import 'package:file_picker/file_picker.dart';
 import '../services/product_service.dart';
 import '../models/product.dart';
+
 
 class AddProductScreen extends StatefulWidget {
   final Product? product;
@@ -127,7 +129,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       final user = FirebaseAuth.instance.currentUser;
 
-      // ✅ Ensure full product model matches Firestore expectations
+      // ✅ Build Product object
       final product = Product(
         id: widget.product?.id ?? '',
         name: _nameController.text.trim(),
@@ -137,13 +139,28 @@ class _AddProductScreenState extends State<AddProductScreen> {
         discountedPrice: double.parse(_discountedPriceController.text.trim()),
         quantity: 1,
         imageUrl: imageUrlToUse ?? '',
-        ownerId: user?.uid ?? '', // ✅ This ensures visibility for the right owner
+        ownerId: user?.uid ?? '', // ✅ Owner ID will always be attached
         expiryDate: _selectedDate,
       );
 
+      // ✅ Add / Update Firestore
       if (widget.product == null) {
         print('Adding product...');
-        await _productService.addProduct(product);
+
+        // Ensure correct Firestore structure
+        await FirebaseFirestore.instance.collection('products').add({
+          'name': product.name,
+          'description': product.description,
+          'category': product.category,
+          'originalPrice': product.originalPrice,
+          'discountedPrice': product.discountedPrice,
+          'quantity': product.quantity,
+          'imageUrl': product.imageUrl,
+          'ownerId': product.ownerId, // 🔥 FIXED: Always include ownerId
+          'expiryDate': product.expiryDate,
+          'createdAt': DateTime.now(),
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Product added successfully!'),
           backgroundColor: Color(0xFF10B981),
